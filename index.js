@@ -729,7 +729,20 @@ async function boot() {
     }
 }
 
-window.addEventListener("beforeunload", () => {
-    saveState();
+window.addEventListener("beforeunload", (e) => {
+    const snapshot = courts.map(c => ({
+        ...c,
+        timerEnd: c.timerEnd ? c.timerEnd - Date.now() : null
+    }));
+    const json = JSON.stringify(snapshot).replace(/'/g, "''");
+    navigator.sendBeacon(
+        `${TURSO_URL}/v2/pipeline`,
+        JSON.stringify({
+            requests: [
+                { type: "execute", stmt: { sql: `INSERT INTO court_state (id, data) VALUES ('main', '${json}') ON CONFLICT(id) DO UPDATE SET data = excluded.data` } },
+                { type: "close" }
+            ]
+        })
+    );
 });
 boot();
