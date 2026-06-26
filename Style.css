@@ -717,13 +717,37 @@ body {
 #toast.show { opacity: 1; }
 
 /* ── Responsive ── */
-@media (max-width: 700px) {
+@media (max-width: 900px) {
     #main-layout {
         grid-template-columns: 1fr;
-        grid-template-rows: 3fr 2fr;
+        grid-template-rows: 2fr 3fr;
         gap: 12px;
         padding: 10px 12px;
     }
     #sidebar { order: -1; height: 100%; }
     #courts-area { height: 100%; }
+
+    body { font-size: 15px; }
+
+    #app-header { padding: 12px 14px; }
+    #header-title { font-size: 15px; }
+
+    .btn { padding: 10px 18px; font-size: 15px; }
+
+    .gym-select { font-size: 16px; }
+    .court-timer { font-size: 13px; padding: 4px 10px; }
+    .section-label { font-size: 13px; padding: 10px 14px 6px; }
+    .court-badge { font-size: 12px; padding: 3px 9px; }
+
+    .slot { height: 52px; }
+    .slot.slot-queue { height: 48px; }
+    .slot-name { font-size: 14px; }
+    .slot-avatar { width: 32px; height: 32px; font-size: 11px; }
+
+    .queue-slots { padding: 6px 6px 8px; }
+
+    .draggable { padding: 10px 10px; gap: 10px; }
+    .player-avatar { width: 34px; height: 34px; font-size: 12px; }
+    .col-username { font-size: 14px; }
+    .col-password { font-size: 13px; }
 }
