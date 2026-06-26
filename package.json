@@ -1,0 +1,15 @@
+{
+  "name": "JSProjects",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "private": true,
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "@tursodatabase/database": "^0.6.1",
+    "interactjs": "^1.10.27"
+  }
+}
