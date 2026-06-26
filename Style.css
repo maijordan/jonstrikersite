@@ -723,9 +723,10 @@ body {
         grid-template-rows: 1fr 1fr;
         gap: 12px;
         padding: 10px 12px;
+        height: calc(100vh - 60px);
     }
-    #sidebar { order: -1; height: 100%; }
-    #courts-area { height: 100%; }
+    #sidebar { order: -1; height: auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+    #courts-area { height: auto; min-height: 0; overflow: hidden; }
 
     body { font-size: 15px; }
 
