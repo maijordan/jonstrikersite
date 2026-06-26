@@ -756,3 +756,9 @@ body {
     .col-password { font-size: 11px; }
     body { font-size: 15px; }
 }
+
+.player-delete-btn {
+    margin-left: auto;
+    opacity: 1;
+    color: #c0392b !important;
+}
