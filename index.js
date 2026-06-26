@@ -1,5 +1,5 @@
-const TURSO_URL = "";
-const TURSO_TOKEN = "";
+const TURSO_URL = "https://bintang-logins-bamster.aws-us-west-2.turso.io";
+const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODIzNzIxNjksImlkIjoiMDE5ZWZkOTUtMGEwMS03MzI4LWE5NzItZGZmZjc2NTc2YTQ0IiwicmlkIjoiMWQzOWNlZDQtMGNlNS00ZWJhLWEzZWItYjkxZjFjODRjYTBjIn0.rRYYWCQwHi8VFY6c9oTLgmTuAVsnBfxBraE-chrOJhPgV7MV04E6OIim4flvJWFrFL1A0V4lRKFAXGy_h_KODQ";
 
 /*
  * Court shape:
