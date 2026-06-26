@@ -716,64 +716,16 @@ body {
 
 #toast.show { opacity: 1; }
 
-/* ── Tab bar (mobile only) ── */
-#tab-bar {
-    display: none;
-}
-
 /* ── Responsive ── */
 @media (max-width: 900px) {
-
-    #tab-bar {
-        display: flex;
-        flex-shrink: 0;
-        border-bottom: 1px solid #e0ddd6;
-        background: #ffffff;
-    }
-
-    .tab-btn {
-        flex: 1;
-        padding: 12px;
-        border: none;
-        background: transparent;
-        font-size: 15px;
-        font-weight: 500;
-        font-family: inherit;
-        color: #888780;
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
-    }
-
-    .tab-btn.tab-active {
-        color: #2e7d32;
-        border-bottom-color: #2e7d32;
-    }
-
     #main-layout {
-        display: block;
-        padding: 12px;
-        overflow-y: auto;
-        height: calc(100vh - 100px);
-    }
-
-    #courts-area {
-        height: auto;
-        min-height: 0;
+        grid-template-columns: 1fr 280px;
+        padding: 10px 12px;
+        gap: 10px;
     }
 
     #courts-grid {
-        grid-template-columns: 1fr;
-        overflow-y: visible;
-    }
-
-    #sidebar {
-        height: auto;
-        min-height: 0;
-    }
-
-    #roster-card {
-        max-height: calc(100vh - 160px);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     body { font-size: 15px; }
@@ -783,7 +735,7 @@ body {
 
     .btn { padding: 10px 16px; font-size: 14px; }
 
-    .gym-select { font-size: 16px; }
+    .gym-select { font-size: 15px; }
     .court-timer { font-size: 13px; padding: 4px 10px; }
     .section-label { font-size: 13px; padding: 10px 14px 6px; }
     .court-badge { font-size: 12px; padding: 3px 9px; }
