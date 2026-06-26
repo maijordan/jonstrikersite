@@ -267,7 +267,7 @@ function startCourtTimer(courtId) {
         court.warmupEnd = Date.now() + minutes * 60 * 1000;
         court.timerEnd = null;
     }
-    court.timerEnd = null;
+
     refresh();
 }
 
