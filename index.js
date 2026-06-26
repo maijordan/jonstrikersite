@@ -259,8 +259,14 @@ function startCourtTimer(courtId) {
     const court = courts.find(c => c.id === courtId);
     if (!court || court.timerEnd != null || court.onCourt.length === 0) return;
     const input = document.getElementById("timer-input-" + courtId);
-    const minutes = input ? Math.max(1, parseInt(input.value) || 10) : 10;
-    court.warmupEnd = Date.now() + minutes * 60 * 1000;
+    const minutes = input ? Math.max(0, parseInt(input.value) || 0) : 0;
+    if (minutes === 0) {
+        court.warmupEnd = null;
+        court.timerEnd = Date.now() + SESSION_MS;
+    } else {
+        court.warmupEnd = Date.now() + minutes * 60 * 1000;
+        court.timerEnd = null;
+    }
     court.timerEnd = null;
     refresh();
 }
@@ -517,7 +523,7 @@ function renderCourts() {
         const warmupClass = court.warmupEnd != null ? " court-timer-warmup" : "";
         const timerHTML = showStartBtn
             ? `<div class="timer-start-wrap">
-                <input type="number" class="timer-input" id="timer-input-${court.id}" value="10" min="1" max="999" title="Minutes before session">
+                <input type="number" class="timer-input" id="timer-input-${court.id}" value="0" min="0" max="999" title="Minutes before session">
                 <span class="timer-input-label">min</span>
                 <button class="btn btn-start-timer" onclick="startCourtTimer('${court.id}')">Start</button>
                </div>`
