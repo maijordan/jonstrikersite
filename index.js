@@ -307,11 +307,6 @@ function updateTimerDisplays() {
     });
 }
 
-setInterval(() => {
-    tickTimers();
-    scheduleSave();
-}, 1000);
-
 function removePlayerFromGroup(courtId, groupIdx, username) {
     const court = courts.find(c => c.id === courtId);
     if (!court) return;
@@ -730,6 +725,11 @@ async function boot() {
         renderRoster(document.getElementById("roster-search").value);
         updateStats();
     }
+
+    setInterval(() => {
+        tickTimers();
+        scheduleSave();
+    }, 1000);
 }
 
 window.addEventListener("beforeunload", (e) => {
