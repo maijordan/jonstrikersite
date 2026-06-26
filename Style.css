@@ -9,6 +9,10 @@ body {
     background: #f4f4f2;
     color: #1a1a18;
     min-height: 100vh;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* ── Header ── */
@@ -19,6 +23,7 @@ body {
     padding: 14px 20px;
     background: #ffffff;
     border-bottom: 1px solid #e0ddd6;
+    flex-shrink: 0;
 }
 
 #header-left {
@@ -90,14 +95,30 @@ body {
     grid-template-columns: 1fr 230px;
     gap: 16px;
     padding: 16px 20px;
-    align-items: start;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ── Courts area wrapper ── */
+#courts-area {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
 }
 
 /* ── Courts grid ── */
 #courts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    align-content: start;
     gap: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
 }
 
 /* ── Court card ── */
@@ -462,6 +483,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    min-height: 0;
+    height: 100%;
 }
 
 .sidebar-card {
@@ -469,6 +492,14 @@ body {
     border: 1px solid #e0ddd6;
     border-radius: 12px;
     overflow: hidden;
+    flex-shrink: 0;
+}
+
+#roster-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .sidebar-header {
@@ -480,6 +511,7 @@ body {
     font-size: 12px;
     font-weight: 600;
     color: #1a1a18;
+    flex-shrink: 0;
 }
 
 .muted-text {
@@ -490,6 +522,7 @@ body {
 .search-wrap {
     padding: 8px 10px;
     border-bottom: 1px solid #e0ddd6;
+    flex-shrink: 0;
 }
 
 .search-wrap input {
@@ -517,6 +550,7 @@ body {
     padding: 8px 10px;
     border-bottom: 1px solid #e0ddd6;
     background: #fafaf8;
+    flex-shrink: 0;
 }
 
 .drag-size-label {
@@ -567,7 +601,8 @@ body {
 
 /* ── Roster list ── */
 #item-list {
-    max-height: 420px;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     padding: 6px;
 }
@@ -683,6 +718,12 @@ body {
 
 /* ── Responsive ── */
 @media (max-width: 700px) {
-    #main-layout { grid-template-columns: 1fr; }
-    #sidebar { order: -1; }
+    #main-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: 3fr 2fr;
+        gap: 12px;
+        padding: 10px 12px;
+    }
+    #sidebar { order: -1; height: 100%; }
+    #courts-area { height: 100%; }
 }
