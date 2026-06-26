@@ -1,0 +1,752 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f4f4f2;
+    color: #1a1a18;
+    min-height: 100vh;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── Header ── */
+#app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: #ffffff;
+    border-bottom: 1px solid #e0ddd6;
+    flex-shrink: 0;
+}
+
+#header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+#header-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a18;
+}
+
+#header-sub {
+    font-size: 12px;
+    color: #888780;
+}
+
+#header-right {
+    display: flex;
+    gap: 8px;
+}
+
+/* ── Buttons ── */
+.btn {
+    padding: 7px 14px;
+    border: 1px solid #c8c6be;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1a1a18;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: inherit;
+}
+
+.btn:hover { background: #f4f4f2; }
+
+.btn-primary {
+    background: #2e7d32;
+    color: #ffffff;
+    border-color: #2e7d32;
+}
+
+.btn-primary:hover {
+    background: #245f27;
+    border-color: #245f27;
+}
+
+.btn-danger {
+    background: transparent;
+    border-color: transparent;
+    color: #888780;
+    padding: 4px 6px;
+}
+
+.btn-danger:hover {
+    background: #fdecea;
+    color: #c0392b;
+    border-color: transparent;
+}
+
+/* ── Main layout ── */
+#main-layout {
+    display: grid;
+    grid-template-columns: 1fr 230px;
+    gap: 16px;
+    padding: 16px 20px;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ── Courts area wrapper ── */
+#courts-area {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+
+/* ── Courts grid ── */
+#courts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    align-content: start;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+/* ── Court card ── */
+.court-card {
+    background: #ffffff;
+    border: 1px solid #e0ddd6;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.court-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid #e0ddd6;
+}
+
+/* ── Gym court number select (doubles as the card title) ── */
+.gym-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    color: #1a1a18;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 2px 18px 2px 0;
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888780' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0 center;
+    background-size: 14px;
+}
+
+.gym-select:hover { color: #2e7d32; }
+
+.gym-select:focus {
+    outline: none;
+    color: #2e7d32;
+}
+
+.gym-select option {
+    font-weight: 500;
+    font-size: 15px;
+    color: #1a1a18;
+    padding: 6px 10px;
+}
+
+/* ── Court session timer ── */
+.court-timer {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: "SF Mono", "Roboto Mono", monospace;
+    color: #2e7d32;
+    background: #e8f5e9;
+    padding: 3px 8px;
+    border-radius: 99px;
+    min-width: 42px;
+    text-align: center;
+    letter-spacing: 0.02em;
+}
+
+.court-timer-hidden {
+    visibility: hidden;
+}
+
+.court-timer-warn {
+    color: #c0392b;
+    background: #fdecea;
+}
+
+.court-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* ── Section labels (On court / Queue) ── */
+.section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #2e7d32;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #f4faf4;
+    border-top: 1px solid #e0ddd6;
+}
+
+.section-label:first-of-type {
+    border-top: none;
+}
+
+.section-label-queue {
+    color: #b45309;
+    background: #fefaf3;
+    border-top: 1px solid #e0ddd6;
+}
+
+/* ── Badges ── */
+.court-badge {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 99px;
+}
+
+.badge-empty { background: #f4f4f2; color: #888780; }
+.badge-ok    { background: #e8f5e9; color: #2e7d32; }
+.badge-full  { background: #fdecea; color: #c0392b; }
+
+/* ── Queue slots ── */
+.queue-slots {
+    padding: 6px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.slot {
+    height: 42px;
+    border: 1.5px dashed #c8c6be;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 6px;
+    transition: border-color 0.12s, background 0.12s;
+}
+
+/* Queue slots are slightly inset visually */
+.slot.slot-queue {
+    height: 38px;
+    background: #fafaf8;
+}
+
+.slot.drop-over {
+    border-color: #2e7d32;
+    background: #e8f5e9;
+}
+
+.slot.slot-queue.drop-over {
+    border-color: #b45309;
+    background: #fef3e2;
+}
+
+.slot.slot-full {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.slot.slot-occupied {
+    border-style: solid;
+    border-color: #e0ddd6;
+    background: #fafaf8;
+}
+
+.slot-num {
+    font-size: 10px;
+    color: #888780;
+    min-width: 14px;
+    text-align: right;
+}
+
+/* Queue numbers in amber */
+.q-num { color: #b45309; }
+
+.slot-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #e8f5e9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: #2e7d32;
+    flex-shrink: 0;
+}
+
+/* Queue avatars in amber */
+.slot-avatar-queue {
+    background: #fef3e2;
+    color: #b45309;
+}
+
+.slot-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #1a1a18;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slot-placeholder {
+    font-size: 11px;
+    color: #b4b2a9;
+}
+
+.slot-remove {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888780;
+    font-size: 13px;
+    line-height: 1;
+    font-family: inherit;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.slot-remove:hover {
+    background: #fdecea;
+    color: #c0392b;
+}
+
+/* ── Queue groups ── */
+.queue-group {
+    border: 1px solid #e8e5de;
+    border-radius: 8px;
+    margin: 6px 8px 0;
+    overflow: hidden;
+}
+
+.queue-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    background: #fefaf3;
+    border-bottom: 1px solid #e8e5de;
+}
+
+.queue-group-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #b45309;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.queue-group-label-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.group-size-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid #f0c987;
+    border-radius: 5px;
+    background: #fff8ec;
+    color: #b45309;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    padding: 2px 18px 2px 6px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b45309' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+    background-size: 11px;
+}
+
+.group-size-select:hover,
+.group-size-select:focus {
+    outline: none;
+    border-color: #b45309;
+}
+
+.group-size-select option {
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: none;
+}
+
+.queue-group .queue-slots {
+    padding: 5px 6px 6px;
+    gap: 4px;
+}
+
+.add-group-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+}
+
+.add-group-label {
+    font-size: 11px;
+    color: #888780;
+    flex: 1;
+}
+
+.btn-add-group {
+    padding: 4px 10px;
+    border: 1px solid #c8c6be;
+    border-radius: 6px;
+    background: #fefaf3;
+    color: #b45309;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.btn-add-group:hover {
+    background: #fef3e2;
+    border-color: #b45309;
+}
+
+/* ── Add court tile ── */
+.add-court-tile {
+    background: transparent;
+    border: 1.5px dashed #c8c6be;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    color: #888780;
+    font-size: 13px;
+    font-family: inherit;
+    width: 100%;
+    transition: border-color 0.12s, color 0.12s;
+}
+
+.add-court-tile:hover {
+    border-color: #2e7d32;
+    color: #2e7d32;
+}
+
+.add-court-tile-icon {
+    font-size: 22px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* ── Sidebar ── */
+#sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    height: 100%;
+}
+
+.sidebar-card {
+    background: #ffffff;
+    border: 1px solid #e0ddd6;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+#roster-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid #e0ddd6;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a1a18;
+    flex-shrink: 0;
+}
+
+.muted-text {
+    color: #888780;
+    font-weight: 400;
+}
+
+.search-wrap {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e0ddd6;
+    flex-shrink: 0;
+}
+
+.search-wrap input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #c8c6be;
+    border-radius: 8px;
+    background: #f4f4f2;
+    color: #1a1a18;
+    font-size: 12px;
+    font-family: inherit;
+}
+
+.search-wrap input:focus {
+    outline: none;
+    border-color: #2e7d32;
+    background: #ffffff;
+}
+
+/* ── Drag batch-size selector ── */
+.drag-size-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e0ddd6;
+    background: #fafaf8;
+    flex-shrink: 0;
+}
+
+.drag-size-label {
+    font-size: 11px;
+    color: #888780;
+}
+
+.drag-size-btns {
+    display: flex;
+    gap: 4px;
+}
+
+.drag-size-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #c8c6be;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #1a1a18;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.drag-size-btn:hover { background: #f4f4f2; }
+
+.drag-size-btn.active {
+    background: #2e7d32;
+    border-color: #2e7d32;
+    color: #ffffff;
+}
+
+/* ── Multi-drag fanned ghost cards ── */
+.drag-ghost {
+    background: #ffffff;
+    border: 1px solid #e0ddd6;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+    pointer-events: none;
+    opacity: 0.92;
+    margin: 0;
+}
+
+/* ── Roster list ── */
+#item-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+/* ── Draggable roster row ── */
+.draggable {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    transition: background 0.1s;
+}
+
+.draggable:hover { background: #f4f4f2; }
+
+.draggable.is-dragging { opacity: 0.35; }
+
+.draggable.is-assigned {
+    opacity: 0.5;
+    cursor: default;
+    pointer-events: none;
+}
+
+.col-username {
+    font-size: 12px;
+    font-weight: 500;
+    color: #1a1a18;
+    flex: 1;
+}
+
+.col-password {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888780;
+    font-family: monospace;
+}
+
+.player-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #e8f5e9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #2e7d32;
+    flex-shrink: 0;
+}
+
+.queued-tag {
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 99px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-weight: 500;
+}
+
+/* ── Stats ── */
+.stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+}
+
+.stat-box {
+    background: #f4f4f2;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.stat-label {
+    font-size: 10px;
+    color: #888780;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.stat-val {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a18;
+    margin-top: 2px;
+}
+
+/* ── Toast ── */
+#toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a18;
+    color: #ffffff;
+    font-size: 12px;
+    padding: 7px 16px;
+    border-radius: 99px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+    z-index: 9999;
+}
+
+#toast.show { opacity: 1; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+    #main-layout {
+        grid-template-columns: 1fr 200px;
+        padding: 10px 8px;
+        gap: 8px;
+    }
+
+    #courts-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    body { font-size: 15px; }
+
+    #app-header { padding: 10px 12px; }
+    #header-title { font-size: 15px; }
+    .btn { padding: 8px 12px; font-size: 13px; }
+
+    .gym-select { font-size: 14px; }
+    .section-label { font-size: 12px; padding: 8px 10px 4px; }
+    .court-badge { font-size: 11px; padding: 2px 7px; }
+    .court-timer { font-size: 12px; padding: 3px 8px; }
+
+    .slot { height: 46px; }
+    .slot.slot-queue { height: 42px; }
+    .slot-name { font-size: 13px; }
+    .slot-placeholder { font-size: 10px; }
+    .slot-num { font-size: 9px; }
+
+    .draggable { padding: 8px; gap: 8px; }
+    .col-username { font-size: 13px; }
+    .col-password { font-size: 11px; }
+}
