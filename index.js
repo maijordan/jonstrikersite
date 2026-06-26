@@ -407,6 +407,7 @@ function setGroupSize(courtId, groupIdx, size) {
 }
 
 function clearAllCourts() {
+    if (!confirm("Clear all courts? This cannot be undone.")) return;
     courts.forEach(c => { c.onCourt = []; c.queue = []; c.timerEnd = null; c.warmupEnd = null; });
     refresh();
     showToast("All courts cleared");
