@@ -22,8 +22,6 @@ let courts       = [];
 let courtCount   = 0;
 let dragGroupSize = 1;
 let booting      = true;
-let localVersion  = 0;
-const sessionId   = Math.random().toString(36).slice(2);
 let sb = null;
 
 /* ── Supabase init ── */
@@ -41,12 +39,11 @@ function scheduleSave() {
 
 async function saveState() {
     if (booting) return;
-    const myVersion = ++localVersion;
     try {
         const snapshot = courts.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
         const { error } = await sb
             .from("court_state")
-            .upsert({ id: "main", data: JSON.stringify(snapshot), version: myVersion, session: sessionId });
+            .upsert({ id: "main", data: JSON.stringify(snapshot) });
         if (error) console.error("saveState error:", error);
     } catch(e) {
         console.error("saveState exception:", e);
@@ -85,22 +82,7 @@ function subscribeToChanges() {
             table: "court_state",
             filter: "id=eq.main"
         }, (payload) => {
-            if (booting) return;
-            // Ignore updates from our own session
-            if (payload.new.session === sessionId) return;
-            try {
-                const snapshot = JSON.parse(payload.new.data);
-                courts = snapshot.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
-                courtCount = courts.reduce((max, c) => {
-                    const n = parseInt(c.id.replace("court-", ""));
-                    return isNaN(n) ? max : Math.max(max, n);
-                }, 0);
-                renderCourts();
-                renderRoster();
-                updateStats();
-            } catch(e) {
-                console.error("realtime parse error:", e);
-            }
+            // ... existing code
         })
         .subscribe();
 
@@ -237,7 +219,6 @@ function setGymNumber(courtId, value) {
 function removeCourt(id) {
     courts = courts.filter(c => c.id !== id);
     refresh();
-    saveState();
 }
 
 function removeFromOnCourt(courtId, username) {
