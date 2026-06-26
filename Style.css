@@ -716,71 +716,37 @@ body {
 
 #toast.show { opacity: 1; }
 
-/* ── Tab bar — hidden on desktop ── */
-#tab-bar { display: none; }
-
 /* ── Responsive ── */
 @media (max-width: 900px) {
-    #tab-bar {
-        display: flex;
-        flex-shrink: 0;
-        border-bottom: 1px solid #e0ddd6;
-        background: #ffffff;
-    }
-
-    .tab-btn {
-        flex: 1;
-        padding: 12px;
-        border: none;
-        background: transparent;
-        font-size: 15px;
-        font-weight: 500;
-        font-family: inherit;
-        color: #888780;
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
-    }
-
-    .tab-btn.tab-active {
-        color: #2e7d32;
-        border-bottom-color: #2e7d32;
-    }
-
     #main-layout {
-        display: block;
-        padding: 10px 12px;
-        overflow-y: auto;
-        flex: 1 1 auto;
-        min-height: 0;
+        grid-template-columns: 1fr 260px;
+        padding: 10px 8px;
+        gap: 8px;
     }
 
     #courts-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        overflow-y: visible;
+        gap: 8px;
     }
 
     body { font-size: 15px; }
 
-    #app-header { padding: 12px 14px; }
+    #app-header { padding: 10px 12px; }
     #header-title { font-size: 15px; }
+    .btn { padding: 8px 12px; font-size: 13px; }
 
-    .btn { padding: 10px 16px; font-size: 14px; }
+    .gym-select { font-size: 14px; }
+    .section-label { font-size: 12px; padding: 8px 10px 4px; }
+    .court-badge { font-size: 11px; padding: 2px 7px; }
+    .court-timer { font-size: 12px; padding: 3px 8px; }
 
-    .gym-select { font-size: 15px; }
-    .court-timer { font-size: 13px; padding: 4px 10px; }
-    .section-label { font-size: 13px; padding: 10px 14px 6px; }
-    .court-badge { font-size: 12px; padding: 3px 9px; }
+    .slot { height: 46px; }
+    .slot.slot-queue { height: 42px; }
+    .slot-name { font-size: 13px; }
+    .slot-placeholder { font-size: 10px; }
+    .slot-num { font-size: 9px; }
 
-    .slot { height: 52px; }
-    .slot.slot-queue { height: 48px; }
-    .slot-name { font-size: 14px; }
-    .slot-avatar { width: 32px; height: 32px; font-size: 11px; }
-
-    .queue-slots { padding: 6px 6px 8px; }
-
-    .draggable { padding: 10px; gap: 10px; }
-    .player-avatar { width: 34px; height: 34px; font-size: 12px; }
-    .col-username { font-size: 14px; }
-    .col-password { font-size: 13px; }
+    .draggable { padding: 8px; gap: 8px; }
+    .col-username { font-size: 13px; }
+    .col-password { font-size: 11px; }
 }
