@@ -13,15 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject secrets into index.js
+      - name: Inject secrets
         run: |
           sed -i 's|const TURSO_URL = ".*"|const TURSO_URL = "${{ secrets.TURSO_URL }}"|' index.js
           sed -i 's|const TURSO_TOKEN = ".*"|const TURSO_TOKEN = "${{ secrets.TURSO_TOKEN }}"|' index.js
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
-          publish_branch: main
-          force_orphan: false
+          publish_branch: gh-pages

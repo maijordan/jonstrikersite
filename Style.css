@@ -750,3 +750,33 @@ body {
     .col-username { font-size: 13px; }
     .col-password { font-size: 11px; }
 }
+/* ── Mobile scroll fix ── */
+@media (max-width: 900px) {
+    body {
+        overflow-y: auto;
+        height: auto;
+    }
+
+    #main-layout {
+        overflow: visible;
+        height: auto;
+        align-items: start;
+    }
+
+    #courts-area {
+        height: auto;
+        min-height: 0;
+    }
+
+    #courts-grid {
+        overflow-y: visible;
+        height: auto;
+        min-height: 0;
+    }
+
+    #sidebar {
+        position: sticky;
+        top: 10px;
+        height: calc(100vh - 80px);
+    }
+}
