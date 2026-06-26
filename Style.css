@@ -716,16 +716,48 @@ body {
 
 #toast.show { opacity: 1; }
 
+/* ── Tab bar — hidden on desktop ── */
+#tab-bar { display: none; }
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
+    #tab-bar {
+        display: flex;
+        flex-shrink: 0;
+        border-bottom: 1px solid #e0ddd6;
+        background: #ffffff;
+    }
+
+    .tab-btn {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        background: transparent;
+        font-size: 15px;
+        font-weight: 500;
+        font-family: inherit;
+        color: #888780;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+    }
+
+    .tab-btn.tab-active {
+        color: #2e7d32;
+        border-bottom-color: #2e7d32;
+    }
+
     #main-layout {
-        grid-template-columns: 1fr 280px;
+        display: block;
         padding: 10px 12px;
-        gap: 10px;
+        overflow-y: auto;
+        flex: 1 1 auto;
+        min-height: 0;
     }
 
     #courts-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow-y: visible;
     }
 
     body { font-size: 15px; }
