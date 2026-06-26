@@ -14,9 +14,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Inject secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          sed -i 's|const TURSO_URL = ".*"|const TURSO_URL = "${{ secrets.TURSO_URL }}"|' index.js
-          sed -i 's|const TURSO_TOKEN = ".*"|const TURSO_TOKEN = "${{ secrets.TURSO_TOKEN }}"|' index.js
+          sed -i "s|const SUPABASE_URL = \".*\"|const SUPABASE_URL = \"${SUPABASE_URL}\"|" index.js
+          sed -i "s|const SUPABASE_KEY = \".*\"|const SUPABASE_KEY = \"${SUPABASE_KEY}\"|" index.js
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
