@@ -1,5 +1,6 @@
 const TURSO_URL = "";
 const TURSO_TOKEN = "";
+
 /*
  * Court shape:
  *   {
@@ -23,9 +24,9 @@ const MAX_GYM_NUM = 50;
 let players      = [];
 let courts       = [];
 let courtCount   = 0;
-let dragGroupSize = 1; // 1, 2, or 4 — how many roster names a single drag carries
+let dragGroupSize = 1;
 
-/* ── Turso helper ── */
+/* ── Turso helpers ── */
 async function tursoQuery(sql) {
     const res = await fetch(`${TURSO_URL}/v2/pipeline`, {
         method: "POST",
@@ -42,6 +43,59 @@ async function tursoQuery(sql) {
     });
     const data = await res.json();
     return data.results[0].response.result.rows;
+}
+
+async function tursoExecute(sql) {
+    const res = await fetch(`${TURSO_URL}/v2/pipeline`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${TURSO_TOKEN}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            requests: [
+                { type: "execute", stmt: { sql } },
+                { type: "close" }
+            ]
+        })
+    });
+    return res.ok;
+}
+
+/* ── Court state persistence ── */
+async function initStateTable() {
+    await tursoExecute(`CREATE TABLE IF NOT EXISTS court_state (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
+}
+
+let saveTimeout = null;
+function scheduleSave() {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveState, 600);
+}
+
+async function saveState() {
+    const snapshot = courts.map(c => ({
+        ...c,
+        timerEnd: c.timerEnd ? c.timerEnd - Date.now() : null
+    }));
+    const json = JSON.stringify(snapshot).replace(/'/g, "''");
+    await tursoExecute(`INSERT INTO court_state (id, data) VALUES ('main', '${json}') ON CONFLICT(id) DO UPDATE SET data = excluded.data`);
+}
+
+async function loadState() {
+    try {
+        const rows = await tursoQuery(`SELECT data FROM court_state WHERE id = 'main'`);
+        if (!rows || rows.length === 0) return false;
+        const snapshot = JSON.parse(rows[0][0].value);
+        courts = snapshot.map(c => ({
+            ...c,
+            timerEnd: c.timerEnd ? Date.now() + c.timerEnd : null
+        }));
+        courtCount = courts.length;
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 /* ── Utilities ── */
@@ -79,7 +133,7 @@ async function loadTable() {
 }
 
 /* ── Roster ── */
-let visibleUnassigned = []; // usernames currently shown & unassigned, in display order
+let visibleUnassigned = [];
 
 function renderRoster(filter = "") {
     const list = document.getElementById("item-list");
@@ -122,8 +176,6 @@ function setDragGroupSize(size) {
     });
 }
 
-// Returns up to dragGroupSize usernames starting at `username`, walking
-// forward through the currently visible+unassigned roster list.
 function getDragBatch(username) {
     const startIdx = visibleUnassigned.indexOf(username);
     if (startIdx === -1) return [username];
@@ -136,7 +188,7 @@ function nextFreeGymNumber() {
     for (let n = 1; n <= MAX_GYM_NUM; n++) {
         if (!used.has(n)) return n;
     }
-    return null; // all 50 taken
+    return null;
 }
 
 function addCourt() {
@@ -147,10 +199,10 @@ function addCourt() {
         gymNumber: nextFreeGymNumber(),
         courtSize: 4,
         onCourt:   [],
-        queue:     [],  // up to 4 groups: { size: 2|4, players: [] }
+        queue:     [],
         timerEnd:  null
     });
-    renderCourts();
+    refresh();
 }
 
 function setGymNumber(courtId, value) {
@@ -160,12 +212,12 @@ function setGymNumber(courtId, value) {
 
     if (num != null && courts.some(c => c.id !== courtId && c.gymNumber === num)) {
         showToast("Court #" + num + " is already in use");
-        renderCourts(); // reset the select back to the real value
+        renderCourts();
         return;
     }
 
     court.gymNumber = num;
-    renderCourts();
+    refresh();
 }
 
 function removeCourt(id) {
@@ -183,8 +235,6 @@ function removeFromOnCourt(courtId, username) {
 }
 
 /* ── Timer ── */
-// Starts the 45-min session timer the moment a court goes from empty to
-// non-empty, and clears it if the court becomes empty again.
 function syncCourtTimer(court) {
     if (court.onCourt.length > 0 && court.timerEnd == null) {
         court.timerEnd = Date.now() + SESSION_MS;
@@ -193,9 +243,6 @@ function syncCourtTimer(court) {
     }
 }
 
-// Pulls players out of the front of the queue to refill onCourt up to
-// courtSize, consuming whole groups in order and removing any group that
-// empties out. Stops once the court is full or the queue runs out.
 function fillCourtFromQueue(court) {
     while (court.onCourt.length < court.courtSize && court.queue.length > 0) {
         const group = court.queue[0];
@@ -205,7 +252,7 @@ function fillCourtFromQueue(court) {
         if (group.players.length === 0) {
             court.queue.shift();
         } else {
-            break; // group didn't fully fit, court is full
+            break;
         }
     }
 }
@@ -243,8 +290,6 @@ function formatCountdown(ms) {
     return m + ":" + String(s).padStart(2, "0");
 }
 
-// Lightweight per-second update that just touches the countdown text/classes
-// instead of re-rendering the whole court grid.
 function updateTimerDisplays() {
     const now = Date.now();
     courts.forEach(court => {
@@ -303,7 +348,7 @@ function setGroupSize(courtId, groupIdx, size) {
 
     if (size < group.players.length) {
         showToast("Remove a player before shrinking this group");
-        renderCourts(); // reset the select back to the real value
+        renderCourts();
         return;
     }
 
@@ -322,6 +367,7 @@ function refresh() {
     renderRoster(document.getElementById("roster-search").value);
     updateStats();
     renderCourts();
+    scheduleSave();
 }
 
 /* ── Render ── */
@@ -333,7 +379,6 @@ function renderCourts() {
         const onFull  = court.onCourt.length >= court.courtSize;
         const qFull   = court.queue.length >= 4;
 
-        /* ── On-court slots ── */
         const onSlotsHTML = Array.from({ length: court.courtSize }, (_, i) => {
             const username = court.onCourt[i];
             if (username) {
@@ -352,7 +397,6 @@ function renderCourts() {
             </div>`;
         }).join("");
 
-        /* ── Queue groups ── */
         const qGroupsHTML = court.queue.map((group, gi) => {
             const groupFull = group.players.length >= group.size;
             const playerSlotsHTML = Array.from({ length: group.size }, (_, pi) => {
@@ -397,7 +441,6 @@ function renderCourts() {
             </div>`;
         }).join("");
 
-        /* ── Add group buttons (only if queue not full) ── */
         const addGroupHTML = !qFull ? `
             <div class="add-group-row">
                 <span class="add-group-label">Add group to queue:</span>
@@ -506,14 +549,11 @@ function initDraggable(el) {
     });
 }
 
-// Clones the dragged card once per extra batch member, fans them out behind
-// the original card (slight rotation + offset), and pins them to the
-// viewport so they can follow the cursor anywhere on screen.
 function createFannedGhosts(originEl, batch) {
     if (batch.length <= 1) return [];
 
     const rect = originEl.getBoundingClientRect();
-    const extras = batch.slice(1); // first name is the original card itself
+    const extras = batch.slice(1);
 
     return extras.map((username, i) => {
         const player = players.find(p => p.username === username);
@@ -532,8 +572,6 @@ function createFannedGhosts(originEl, batch) {
             if (avatarEl) avatarEl.textContent = initials(player.username);
         }
 
-        // Fan out: alternating left/right tilt, increasing offset per card,
-        // each one a bit further "behind" so the stack reads back-to-front.
         const dir    = i % 2 === 0 ? 1 : -1;
         const step   = Math.ceil((i + 1) / 2);
         const rot    = dir * (6 * step);
@@ -575,7 +613,6 @@ function initDropzones() {
 
                     const batch = getDragBatch(leadUsername);
 
-                    // Skip anyone already placed anywhere on this court.
                     const toPlace = batch.filter(u =>
                         !court.onCourt.includes(u) &&
                         !court.queue.some(g => g.players.includes(u))
@@ -619,23 +656,17 @@ function initDropzones() {
     });
 }
 
-// Fills onCourt starting at startIdx, wrapping forward through remaining
-// on-court slots, then spilling into queue groups in order. Returns the
-// usernames actually placed.
 function fillOnCourtFrom(court, startIdx, usernames) {
     const placed = [];
     let names = usernames.slice();
 
-    // Fill on-court slots from startIdx to the end.
     for (let i = startIdx; i < court.courtSize && names.length > 0; i++) {
-        if (court.onCourt[i] != null) continue; // slot already occupied
+        if (court.onCourt[i] != null) continue;
         court.onCourt[i] = names.shift();
     }
-    // Clean up any holes/undefined left if startIdx wasn't at the true end.
     court.onCourt = court.onCourt.filter(u => u != null);
     placed.push(...usernames.slice(0, usernames.length - names.length));
 
-    // Spill remaining names into queue groups, in order.
     if (names.length > 0) {
         const queuePlaced = fillQueueFrom(court, 0, 0, names);
         placed.push(...queuePlaced);
@@ -643,8 +674,6 @@ function fillOnCourtFrom(court, startIdx, usernames) {
     return placed;
 }
 
-// Fills queue groups starting at (startGroup, startSlot), then continuing
-// into subsequent groups in order. Returns the usernames actually placed.
 function fillQueueFrom(court, startGroup, startSlot, usernames) {
     const placed = [];
     let names = usernames.slice();
@@ -657,13 +686,12 @@ function fillQueueFrom(court, startGroup, startSlot, usernames) {
             group.players[pi] = names.shift();
         }
         group.players = group.players.filter(u => u != null);
-        // recompute how many were placed this pass by diffing remaining names
     }
     placed.push(...usernames.slice(0, usernames.length - names.length));
     return placed;
 }
 
-/* ── Drag batch size selector (injected above the roster list) ── */
+/* ── Drag batch size selector ── */
 function injectDragSizeSelector() {
     const list = document.getElementById("item-list");
     if (!list || document.getElementById("drag-size-row")) return;
@@ -684,7 +712,21 @@ function injectDragSizeSelector() {
 }
 
 /* ── Boot ── */
-injectDragSizeSelector();
-addCourt();
-addCourt();
-loadTable();
+async function boot() {
+    injectDragSizeSelector();
+    await initStateTable();
+    const restored = await loadState();
+    if (!restored) {
+        addCourt();
+        addCourt();
+    } else {
+        renderCourts();
+    }
+    await loadTable();
+    if (restored) {
+        renderRoster(document.getElementById("roster-search").value);
+        updateStats();
+    }
+}
+
+boot();
