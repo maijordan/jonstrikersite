@@ -1,0 +1,22 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inject secrets into index.js
+        run: |
+          sed -i 's|const TURSO_URL = ".*"|const TURSO_URL = "${{ secrets.TURSO_URL }}"|' index.js
+          sed -i 's|const TURSO_TOKEN = ".*"|const TURSO_TOKEN = "${{ secrets.TURSO_TOKEN }}"|' index.js
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
