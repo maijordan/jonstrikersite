@@ -19,6 +19,11 @@
     </div>
 </div>
 
+<div id="tab-bar">
+    <button class="tab-btn tab-active" onclick="switchTab('courts')">Courts</button>
+    <button class="tab-btn" onclick="switchTab('roster')">Roster</button>
+</div>
+
 <div id="main-layout">
 
     <div id="courts-area">
@@ -61,5 +66,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 <script src="index.js"></script>
+<script>
+    function switchTab(tab) {
+        const courts = document.getElementById('courts-area');
+        const sidebar = document.getElementById('sidebar');
+        const btns = document.querySelectorAll('.tab-btn');
+        if (tab === 'courts') {
+            courts.style.display = '';
+            sidebar.style.display = 'none';
+            btns[0].classList.add('tab-active');
+            btns[1].classList.remove('tab-active');
+        } else {
+            courts.style.display = 'none';
+            sidebar.style.display = '';
+            btns[0].classList.remove('tab-active');
+            btns[1].classList.add('tab-active');
+        }
+    }
+</script>
 </body>
 </html>

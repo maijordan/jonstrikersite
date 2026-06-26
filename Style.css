@@ -716,24 +716,72 @@ body {
 
 #toast.show { opacity: 1; }
 
+/* ── Tab bar (mobile only) ── */
+#tab-bar {
+    display: none;
+}
+
 /* ── Responsive ── */
-@media (max-width: 1100px) {
-    #main-layout {
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr 1fr;
-        gap: 12px;
-        padding: 10px 12px;
-        height: calc(100vh - 60px);
+@media (max-width: 900px) {
+
+    #tab-bar {
+        display: flex;
+        flex-shrink: 0;
+        border-bottom: 1px solid #e0ddd6;
+        background: #ffffff;
     }
-    #sidebar { order: -1; height: auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-    #courts-area { height: auto; min-height: 0; overflow: hidden; }
+
+    .tab-btn {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        background: transparent;
+        font-size: 15px;
+        font-weight: 500;
+        font-family: inherit;
+        color: #888780;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+    }
+
+    .tab-btn.tab-active {
+        color: #2e7d32;
+        border-bottom-color: #2e7d32;
+    }
+
+    #main-layout {
+        display: block;
+        padding: 12px;
+        overflow-y: auto;
+        height: calc(100vh - 100px);
+    }
+
+    #courts-area {
+        height: auto;
+        min-height: 0;
+    }
+
+    #courts-grid {
+        grid-template-columns: 1fr;
+        overflow-y: visible;
+    }
+
+    #sidebar {
+        height: auto;
+        min-height: 0;
+    }
+
+    #roster-card {
+        max-height: calc(100vh - 160px);
+    }
 
     body { font-size: 15px; }
 
     #app-header { padding: 12px 14px; }
     #header-title { font-size: 15px; }
 
-    .btn { padding: 10px 18px; font-size: 15px; }
+    .btn { padding: 10px 16px; font-size: 14px; }
 
     .gym-select { font-size: 16px; }
     .court-timer { font-size: 13px; padding: 4px 10px; }
@@ -747,7 +795,7 @@ body {
 
     .queue-slots { padding: 6px 6px 8px; }
 
-    .draggable { padding: 10px 10px; gap: 10px; }
+    .draggable { padding: 10px; gap: 10px; }
     .player-avatar { width: 34px; height: 34px; font-size: 12px; }
     .col-username { font-size: 14px; }
     .col-password { font-size: 13px; }
