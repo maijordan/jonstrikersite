@@ -76,7 +76,7 @@ function scheduleSave() {
 async function saveState() {
     const snapshot = courts.map(c => ({
         ...c,
-        timerEnd: c.timerEnd ? c.timerEnd - Date.now() : null
+        timerEnd: c.timerEnd ?? null
     }));
     const json = JSON.stringify(snapshot).replace(/'/g, "''");
     await tursoExecute(`INSERT INTO court_state (id, data) VALUES ('main', '${json}') ON CONFLICT(id) DO UPDATE SET data = excluded.data`);
@@ -90,7 +90,7 @@ async function loadState() {
         console.log("Loaded snapshot:", snapshot); // ADD THIS
         courts = snapshot.map(c => ({
             ...c,
-            timerEnd: c.timerEnd ? Date.now() + c.timerEnd : null
+            timerEnd: c.timerEnd ?? null
         }));
         courtCount = courts.length;
         return true;
