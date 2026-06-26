@@ -22,7 +22,9 @@ let courts       = [];
 let courtCount   = 0;
 let dragGroupSize = 1;
 let booting      = true;
-let sb = null;
+let sb           = null;
+let localVersion  = 0;
+const sessionId   = Math.random().toString(36).slice(2);
 
 /* ── Supabase init ── */
 function initSupabase() {
@@ -43,7 +45,7 @@ async function saveState() {
         const snapshot = courts.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
         const { error } = await sb
             .from("court_state")
-            .upsert({ id: "main", data: JSON.stringify(snapshot) });
+            .upsert({ id: "main", data: JSON.stringify(snapshot), version: ++localVersion, session: sessionId });
         if (error) console.error("saveState error:", error);
     } catch(e) {
         console.error("saveState exception:", e);
@@ -82,7 +84,21 @@ function subscribeToChanges() {
             table: "court_state",
             filter: "id=eq.main"
         }, (payload) => {
-            // ... existing code
+            if (booting) return;
+            if (payload.new.session === sessionId) return;
+            try {
+                const snapshot = JSON.parse(payload.new.data);
+                courts = snapshot.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
+                courtCount = courts.reduce((max, c) => {
+                    const n = parseInt(c.id.replace("court-", ""));
+                    return isNaN(n) ? max : Math.max(max, n);
+                }, 0);
+                renderCourts();
+                renderRoster();
+                updateStats();
+            } catch(e) {
+                console.error("realtime parse error:", e);
+            }
         })
         .subscribe();
 
@@ -385,7 +401,7 @@ function setGroupSize(courtId, groupIdx, size) {
 }
 
 function clearAllCourts() {
-    courts.forEach(c => { c.onCourt = []; c.queue = []; c.timerEnd = null; });
+    courts.forEach(c => { c.onCourt = []; c.queue = []; c.timerEnd = null; c.warmupEnd = null; });
     refresh();
     showToast("All courts cleared");
 }
@@ -395,7 +411,7 @@ function refresh() {
     updateStats();
     renderCourts();
     if (activeTab === "courts") renderCourtsReadonly();
-    scheduleSave();
+    saveState();
 }
 
 /* ── Render ── */
@@ -899,10 +915,7 @@ async function boot() {
     booting = false;
     subscribeToChanges();
 
-    setInterval(() => {
-        tickTimers();
-        saveState();
-    }, 1000);
+    setInterval(tickTimers, 1000);
 }
 
 boot();
