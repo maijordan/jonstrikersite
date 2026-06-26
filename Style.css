@@ -175,7 +175,7 @@ body {
     font-weight: 700;
     font-family: inherit;
     cursor: pointer;
-    padding: 2px 18px 2px 0;
+    padding: 2px 22px 2px 0;
     flex: 0 1 auto;
     min-width: 0;
     white-space: nowrap;
@@ -1140,4 +1140,20 @@ body {
     justify-content: center;
     border-radius: 10px;
     padding: 8px 14px;
+}
+
+/* Fix delete button visibility in dark mode */
+.player-delete-btn {
+    color: #888780;
+    -webkit-text-fill-color: #888780;
+}
+
+/* Fix court number select in dark mode */
+.gym-select {
+    color-scheme: light;
+}
+
+/* Fix slot-remove visibility */
+.slot-remove {
+    color-scheme: light;
 }
