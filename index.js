@@ -87,6 +87,7 @@ async function loadState() {
         const rows = await tursoQuery(`SELECT data FROM court_state WHERE id = 'main'`);
         if (!rows || rows.length === 0) return false;
         const snapshot = JSON.parse(rows[0][0].value);
+        console.log("Loaded snapshot:", snapshot); // ADD THIS
         courts = snapshot.map(c => ({
             ...c,
             timerEnd: c.timerEnd ? Date.now() + c.timerEnd : null
@@ -94,6 +95,7 @@ async function loadState() {
         courtCount = courts.length;
         return true;
     } catch (e) {
+        console.error("loadState error:", e); // ADD THIS
         return false;
     }
 }
