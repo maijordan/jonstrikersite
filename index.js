@@ -729,4 +729,7 @@ async function boot() {
     }
 }
 
+window.addEventListener("beforeunload", () => {
+    saveState();
+});
 boot();
