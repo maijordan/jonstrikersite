@@ -194,6 +194,7 @@ body {
     gap: 8px;
     padding: 10px 12px 8px;
     border-bottom: 1px solid #e0ddd6;
+    flex-wrap: wrap;
 }
 
 .court-header-right {
@@ -258,10 +259,12 @@ body {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .timer-input {
-    width: 48px;
+    width: 36px;
     padding: 3px 6px;
     border: 1px solid #c8c6be;
     border-radius: 6px;
@@ -678,12 +681,11 @@ body {
 
 .player-delete-btn {
     margin-left: auto;
-    opacity: 0;
-    transition: opacity 0.15s;
-    color: #888780 !important;
+    opacity: 1;
+    color: #c0392b !important;
 }
 
-.draggable:hover .player-delete-btn { opacity: 1; }
+
 
 .drag-batch-highlight {
     background: rgba(46, 125, 50, 0.15);
