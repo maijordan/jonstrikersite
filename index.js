@@ -237,9 +237,9 @@ function removeFromOnCourt(courtId, username) {
 }
 
 /* ── Timer ── */
-function syncCourtTimer(court) {
+function syncCourtTimer(court, startTime = null) {
     if (court.onCourt.length > 0 && court.timerEnd == null) {
-        court.timerEnd = Date.now() + SESSION_MS;
+        court.timerEnd = (startTime ?? Date.now()) + SESSION_MS;
     } else if (court.onCourt.length === 0) {
         court.timerEnd = null;
     }
@@ -259,18 +259,17 @@ function fillCourtFromQueue(court) {
     }
 }
 
-function rotateCourt(court) {
+function rotateCourt(court, startTime = null) {
     const rotatedOut = court.onCourt.slice();
     court.onCourt = [];
     court.timerEnd = null;
     fillCourtFromQueue(court);
-    syncCourtTimer(court);
+    syncCourtTimer(court, startTime);
     refresh();
     if (rotatedOut.length) {
         showToast(court.name + " rotated — next group is up");
     }
 }
-
 function tickTimers() {
     const now = Date.now();
     let anyExpired = false;
@@ -724,6 +723,14 @@ async function boot() {
     }
     await loadTable();
     if (restored) {
+        const now = Date.now();
+        courts.forEach(court => {
+            if (court.timerEnd != null && now >= court.timerEnd) {
+                const expiredAt = court.timerEnd; // when the previous session ended
+                court.timerEnd = null; // clear so syncCourtTimer sets a new one
+                rotateCourt(court, expiredAt);
+            }
+        });
         renderRoster(document.getElementById("roster-search").value);
         updateStats();
     }
