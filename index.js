@@ -472,6 +472,8 @@ function renderCourts() {
 /* ── Drag ── */
 function initDraggable(el) {
     const pos = { x: 0, y: 0 };
+    let ghosts = [];
+
     interact(el).draggable({
         listeners: {
             start(e) {
@@ -479,17 +481,16 @@ function initDraggable(el) {
                 e.target.style.zIndex = 1000;
 
                 const batch = getDragBatch(e.target.dataset.username);
-                if (batch.length > 1) {
-                    const badge = document.createElement("span");
-                    badge.className = "drag-batch-badge";
-                    badge.textContent = "+" + (batch.length - 1) + " more";
-                    e.target.appendChild(badge);
-                }
+                ghosts = createFannedGhosts(e.target, batch);
             },
             move(e) {
                 pos.x += e.dx;
                 pos.y += e.dy;
                 e.target.style.transform = `translate(${pos.x}px,${pos.y}px)`;
+                ghosts.forEach(g => {
+                    g.style.transform =
+                        `translate(${pos.x + g.dataset.offX}px,${pos.y + g.dataset.offY}px) rotate(${g.dataset.rot}deg)`;
+                });
             },
             end(e) {
                 e.target.classList.remove("is-dragging");
@@ -498,10 +499,60 @@ function initDraggable(el) {
                 e.target.style.zIndex     = "";
                 pos.x = 0; pos.y = 0;
                 setTimeout(() => { e.target.style.transition = ""; }, 150);
-                const badge = e.target.querySelector(".drag-batch-badge");
-                if (badge) badge.remove();
+
+                ghosts.forEach(g => g.remove());
+                ghosts = [];
             }
         }
+    });
+}
+
+// Clones the dragged card once per extra batch member, fans them out behind
+// the original card (slight rotation + offset), and pins them to the
+// viewport so they can follow the cursor anywhere on screen.
+function createFannedGhosts(originEl, batch) {
+    if (batch.length <= 1) return [];
+
+    const rect = originEl.getBoundingClientRect();
+    const extras = batch.slice(1); // first name is the original card itself
+
+    return extras.map((username, i) => {
+        const player = players.find(p => p.username === username);
+        const ghost = originEl.cloneNode(true);
+        ghost.classList.remove("is-dragging");
+        ghost.classList.add("drag-ghost");
+        ghost.removeAttribute("id");
+
+        if (player) {
+            ghost.dataset.username = player.username;
+            const nameEl = ghost.querySelector(".col-username");
+            const pwEl   = ghost.querySelector(".col-password");
+            if (nameEl) nameEl.textContent = player.username;
+            if (pwEl)   pwEl.textContent   = player.password;
+            const avatarEl = ghost.querySelector(".player-avatar");
+            if (avatarEl) avatarEl.textContent = initials(player.username);
+        }
+
+        // Fan out: alternating left/right tilt, increasing offset per card,
+        // each one a bit further "behind" so the stack reads back-to-front.
+        const dir    = i % 2 === 0 ? 1 : -1;
+        const step   = Math.ceil((i + 1) / 2);
+        const rot    = dir * (6 * step);
+        const offX   = dir * (10 * step);
+        const offY   = 6 * step;
+
+        ghost.style.position   = "fixed";
+        ghost.style.left       = rect.left + "px";
+        ghost.style.top        = rect.top + "px";
+        ghost.style.width      = rect.width + "px";
+        ghost.style.zIndex     = 999 - step;
+        ghost.style.transform  = `translate(${offX}px,${offY}px) rotate(${rot}deg)`;
+        ghost.dataset.offX = offX;
+        ghost.dataset.offY = offY;
+        ghost.dataset.rot  = rot;
+
+        document.body.appendChild(ghost);
+        return ghost;
     });
 }
 
