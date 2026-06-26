@@ -246,16 +246,13 @@ function syncCourtTimer(court, startTime = null) {
 }
 
 function fillCourtFromQueue(court) {
-    while (court.onCourt.length < court.courtSize && court.queue.length > 0) {
-        const group = court.queue[0];
-        const space = court.courtSize - court.onCourt.length;
-        const take  = group.players.splice(0, space);
-        court.onCourt.push(...take);
-        if (group.players.length === 0) {
-            court.queue.shift();
-        } else {
-            break;
-        }
+    if (court.queue.length === 0) return;
+    const group = court.queue[0];
+    const space = court.courtSize - court.onCourt.length;
+    const take = group.players.splice(0, space);
+    court.onCourt.push(...take);
+    if (group.players.length === 0) {
+        court.queue.shift();
     }
 }
 
