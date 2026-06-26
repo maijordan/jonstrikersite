@@ -730,7 +730,7 @@ async function boot() {
 
     setInterval(() => {
         tickTimers();
-        scheduleSave();
+        saveState();
     }, 1000);
 }
 
