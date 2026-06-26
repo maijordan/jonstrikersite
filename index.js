@@ -18,7 +18,7 @@ const TURSO_TOKEN = "PLACEHOLDER_TOKEN";
  *   }
  */
 
-const SESSION_MS  = 45 * 60 * 1000; // 45 minutes
+const SESSION_MS  = 1 * 60 * 1000; // 45 minutes
 const MAX_GYM_NUM = 50;
 
 let players      = [];
