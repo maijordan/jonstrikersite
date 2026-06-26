@@ -23,6 +23,7 @@ let courtCount   = 0;
 let dragGroupSize = 1;
 let booting      = true;
 let localVersion  = 0;
+const sessionId   = Math.random().toString(36).slice(2);
 let sb = null;
 
 /* ── Supabase init ── */
@@ -45,7 +46,7 @@ async function saveState() {
         const snapshot = courts.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
         const { error } = await sb
             .from("court_state")
-            .upsert({ id: "main", data: JSON.stringify(snapshot), version: myVersion });
+            .upsert({ id: "main", data: JSON.stringify(snapshot), version: myVersion, session: sessionId });
         if (error) console.error("saveState error:", error);
     } catch(e) {
         console.error("saveState exception:", e);
@@ -85,8 +86,8 @@ function subscribeToChanges() {
             filter: "id=eq.main"
         }, (payload) => {
             if (booting) return;
-            const incomingVersion = payload.new.version || 0;
-            if (incomingVersion <= localVersion) return;
+            // Ignore updates from our own session
+            if (payload.new.session === sessionId) return;
             try {
                 const snapshot = JSON.parse(payload.new.data);
                 courts = snapshot.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
