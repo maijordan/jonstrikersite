@@ -11,55 +11,70 @@
 <div id="app-header">
     <div id="header-left">
         <span id="header-title">Bintang Court Manager</span>
-        <span id="header-sub">Bintang Logins · Turso</span>
+        <span id="header-sub">Bintang Logins</span>
+    </div>
+    <div id="header-center">
+        <button class="tab-btn active" id="tab-manage" onclick="switchTab('manage')">Manage</button>
+        <button class="tab-btn" id="tab-courts" onclick="switchTab('courts')">Courts</button>
     </div>
     <div id="header-right">
         <button class="btn" onclick="clearAllCourts()">Clear all</button>
-        <button class="btn btn-primary" onclick="addCourt()">+ Add court</button>
     </div>
 </div>
 
-<div id="main-layout">
+<div id="view-manage">
+    <div id="main-layout">
 
-    <div id="courts-area">
-        <div id="courts-grid">
-            <!-- courts rendered here by JS -->
+        <div id="courts-area">
+            <div id="courts-grid">
+                <!-- courts rendered here by JS -->
+            </div>
         </div>
-    </div>
 
-    <div id="sidebar">
-        <div class="sidebar-card">
-            <div class="stats-row">
-                <div class="stat-box">
-                    <div class="stat-label">Players</div>
-                    <div class="stat-val" id="stat-players">—</div>
+        <div id="sidebar">
+            <div class="sidebar-card">
+                <div class="stats-row">
+                    <div class="stat-box">
+                        <div class="stat-label">Players</div>
+                        <div class="stat-val" id="stat-players">—</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Queued</div>
+                        <div class="stat-val" id="stat-queued">—</div>
+                    </div>
                 </div>
-                <div class="stat-box">
-                    <div class="stat-label">Queued</div>
-                    <div class="stat-val" id="stat-queued">—</div>
+            </div>
+
+            <div class="sidebar-card" id="roster-card">
+                <div class="sidebar-header">
+                    <span>Roster</span>
+                    <span id="roster-count" class="muted-text">0 players</span>
+                </div>
+                <div class="signup-inline">
+                    <input type="text" id="signup-username" placeholder="Username" autocomplete="off">
+                    <input type="password" id="signup-password" placeholder="Password" autocomplete="off">
+                    <div id="signup-error" class="signup-toast-error" style="display:none"></div>
+                    <button class="btn btn-primary" onclick="submitSignup()">Sign up</button>
+                </div>
+                <div id="item-list">
+                    <!-- roster rows rendered here by JS -->
                 </div>
             </div>
         </div>
 
-        <div class="sidebar-card" id="roster-card">
-            <div class="sidebar-header">
-                <span>Roster</span>
-                <span id="roster-count" class="muted-text">0 players</span>
-            </div>
-            <div class="search-wrap">
-                <input type="text" id="roster-search" placeholder="Search players…" oninput="filterRoster()">
-            </div>
-            <div id="item-list">
-                <!-- roster rows rendered here by JS -->
-            </div>
-        </div>
     </div>
+</div>
 
+<div id="view-courts" style="display:none">
+    <div id="courts-grid-readonly">
+        <!-- read-only court display rendered here by JS -->
+    </div>
 </div>
 
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="index.js"></script>
 </body>
 </html>

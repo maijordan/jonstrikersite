@@ -1,103 +1,113 @@
-const TURSO_URL = "https://bintang-logins-bamster.aws-us-west-2.turso.io";
-const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODIzNzIxNjksImlkIjoiMDE5ZWZkOTUtMGEwMS03MzI4LWE5NzItZGZmZjc2NTc2YTQ0IiwicmlkIjoiMWQzOWNlZDQtMGNlNS00ZWJhLWEzZWItYjkxZjFjODRjYTBjIn0.rRYYWCQwHi8VFY6c9oTLgmTuAVsnBfxBraE-chrOJhPgV7MV04E6OIim4flvJWFrFL1A0V4lRKFAXGy_h_KODQ";
+const SUPABASE_URL = "https://zsopbjfqmhxswgclgflr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_pH32vh77O449v32DQNhkNA_kBZV0bAz";
 
 /*
  * Court shape:
  *   {
  *     id:         string,
  *     name:       string,
- *     gymNumber:  number | null,  -- physical gym court number, 1-50, unique
- *     courtSize:  2 | 4,           -- players ON court
- *     onCourt:    [username, ...], -- currently playing (max courtSize)
- *     queue:      [                -- up to 4 groups waiting
- *       { size: 2|4, players: [username, ...] },
- *       ...
- *     ],
- *     timerEnd:   number | null,  -- Date.now()-style ms timestamp when the
- *                                    current session on this court expires
+ *     gymNumber:  number | null,
+ *     courtSize:  2 | 4,
+ *     onCourt:    [username, ...],
+ *     queue:      [{ size: 2|4, players: [username, ...] }, ...],
+ *     timerEnd:   number | null,
  *   }
  */
 
-const SESSION_MS  = 1 * 60 * 1000; // 45 minutes
+const SESSION_MS  = 45 * 60 * 1000;
 const MAX_GYM_NUM = 50;
 
 let players      = [];
 let courts       = [];
 let courtCount   = 0;
 let dragGroupSize = 1;
+let booting      = true;
+let sb = null;
 
-/* ── Turso helpers ── */
-async function tursoQuery(sql) {
-    const res = await fetch(`${TURSO_URL}/v2/pipeline`, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${TURSO_TOKEN}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            requests: [
-                { type: "execute", stmt: { sql } },
-                { type: "close" }
-            ]
-        })
-    });
-    const data = await res.json();
-    return data.results[0].response.result.rows;
-}
-
-async function tursoExecute(sql) {
-    const res = await fetch(`${TURSO_URL}/v2/pipeline`, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${TURSO_TOKEN}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            requests: [
-                { type: "execute", stmt: { sql } },
-                { type: "close" }
-            ]
-        })
-    });
-    return res.ok;
+/* ── Supabase init ── */
+function initSupabase() {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
 /* ── Court state persistence ── */
-async function initStateTable() {
-    await tursoExecute(`CREATE TABLE IF NOT EXISTS court_state (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
-}
-
 let saveTimeout = null;
 function scheduleSave() {
+    if (booting) return;
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(saveState, 600);
 }
 
 async function saveState() {
-    const snapshot = courts.map(c => ({
-        ...c,
-        timerEnd: c.timerEnd ?? null
-    }));
-    const json = JSON.stringify(snapshot).replace(/'/g, "''");
-    await tursoExecute(`INSERT INTO court_state (id, data) VALUES ('main', '${json}') ON CONFLICT(id) DO UPDATE SET data = excluded.data`);
+    if (booting) return;
+    try {
+        const snapshot = courts.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
+        const { error } = await sb
+            .from("court_state")
+            .upsert({ id: "main", data: JSON.stringify(snapshot) });
+        if (error) console.error("saveState error:", error);
+    } catch(e) {
+        console.error("saveState exception:", e);
+    }
 }
 
 async function loadState() {
     try {
-        const rows = await tursoQuery(`SELECT data FROM court_state WHERE id = 'main'`);
-        if (!rows || rows.length === 0) return false;
-        const snapshot = JSON.parse(rows[0][0].value);
-        console.log("Loaded snapshot:", snapshot); // ADD THIS
-        courts = snapshot.map(c => ({
-            ...c,
-            timerEnd: c.timerEnd ?? null
-        }));
-        courtCount = courts.length;
+        const { data, error } = await sb
+            .from("court_state")
+            .select("data")
+            .eq("id", "main")
+            .single();
+        if (error || !data) return false;
+        const snapshot = JSON.parse(data.data);
+        if (!Array.isArray(snapshot) || snapshot.length === 0) return false;
+        courts = snapshot.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
+        courtCount = courts.reduce((max, c) => {
+            const n = parseInt(c.id.replace("court-", ""));
+            return isNaN(n) ? max : Math.max(max, n);
+        }, 0);
         return true;
-    } catch (e) {
-        console.error("loadState error:", e); // ADD THIS
+    } catch(e) {
+        console.error("loadState error:", e);
         return false;
     }
+}
+
+/* ── Realtime subscription ── */
+function subscribeToChanges() {
+    sb
+        .channel("court_state_changes")
+        .on("postgres_changes", {
+            event: "UPDATE",
+            schema: "public",
+            table: "court_state",
+            filter: "id=eq.main"
+        }, (payload) => {
+            // ... existing code
+        })
+        .subscribe();
+
+
+    sb
+        .channel("logins_changes")
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "logins"
+        }, async () => {
+            await loadTable();
+        })
+        .subscribe();
+}
+
+/* ── Load players from Supabase ── */
+async function loadTable() {
+    const { data, error } = await sb
+        .from("logins")
+        .select("username, password");
+    if (error) { console.error("loadTable error:", error); return; }
+    players = data.map(row => ({ username: row.username, password: row.password }));
+    renderRoster();
+    updateStats();
 }
 
 /* ── Utilities ── */
@@ -123,28 +133,16 @@ function updateStats() {
         players.filter(p => isAssigned(p.username)).length;
 }
 
-/* ── Load table ── */
-async function loadTable() {
-    const rows = await tursoQuery('SELECT * FROM "Bintang Logins"');
-    players = rows.map(row => ({
-        username: row[0].value,
-        password: row[1].value
-    }));
-    renderRoster();
-    updateStats();
-}
-
 /* ── Roster ── */
 let visibleUnassigned = [];
 
-function renderRoster(filter = "") {
+function renderRoster() {
     const list = document.getElementById("item-list");
-    const q    = filter.toLowerCase();
+    const q    = "";
     list.innerHTML = "";
     visibleUnassigned = [];
 
     players
-        .filter(p => p.username.toLowerCase().includes(q))
         .forEach(p => {
             const assigned = isAssigned(p.username);
             const el = document.createElement("div");
@@ -155,6 +153,7 @@ function renderRoster(filter = "") {
                 <span class="col-username">${p.username}</span>
                 <span class="col-password">${p.password}</span>
                 ${assigned ? '<span class="queued-tag">assigned</span>' : ""}
+                <button class="slot-remove player-delete-btn" onclick="deletePlayer('${p.username}')" title="Delete player">✕</button>
             `;
             list.appendChild(el);
             if (!assigned) {
@@ -167,9 +166,6 @@ function renderRoster(filter = "") {
         `${players.length} player${players.length !== 1 ? "s" : ""}`;
 }
 
-function filterRoster() {
-    renderRoster(document.getElementById("roster-search").value);
-}
 
 function setDragGroupSize(size) {
     dragGroupSize = size;
@@ -211,13 +207,11 @@ function setGymNumber(courtId, value) {
     const court = courts.find(c => c.id === courtId);
     if (!court) return;
     const num = value === "" ? null : parseInt(value, 10);
-
     if (num != null && courts.some(c => c.id !== courtId && c.gymNumber === num)) {
         showToast("Court #" + num + " is already in use");
         renderCourts();
         return;
     }
-
     court.gymNumber = num;
     refresh();
 }
@@ -231,18 +225,28 @@ function removeFromOnCourt(courtId, username) {
     const court = courts.find(c => c.id === courtId);
     if (!court) return;
     court.onCourt = court.onCourt.filter(u => u !== username);
-    syncCourtTimer(court);
+    syncCourtTimer(court, null, false);
     refresh();
     showToast(username + " removed from court");
 }
 
 /* ── Timer ── */
-function syncCourtTimer(court, startTime = null) {
-    if (court.onCourt.length > 0 && court.timerEnd == null) {
+function syncCourtTimer(court, startTime = null, autoStart = true) {
+    if (court.onCourt.length > 0 && court.timerEnd == null && autoStart) {
         court.timerEnd = (startTime ?? Date.now()) + SESSION_MS;
     } else if (court.onCourt.length === 0) {
         court.timerEnd = null;
     }
+}
+
+function startCourtTimer(courtId) {
+    const court = courts.find(c => c.id === courtId);
+    if (!court || court.timerEnd != null || court.onCourt.length === 0) return;
+    const input = document.getElementById("timer-input-" + courtId);
+    const minutes = input ? Math.max(1, parseInt(input.value) || 10) : 10;
+    court.warmupEnd = Date.now() + minutes * 60 * 1000;
+    court.timerEnd = null;
+    refresh();
 }
 
 function fillCourtFromQueue(court) {
@@ -251,9 +255,7 @@ function fillCourtFromQueue(court) {
     const space = court.courtSize - court.onCourt.length;
     const take = group.players.splice(0, space);
     court.onCourt.push(...take);
-    if (group.players.length === 0) {
-        court.queue.shift();
-    }
+    if (group.players.length === 0) court.queue.shift();
 }
 
 function rotateCourt(court, startTime = null) {
@@ -263,22 +265,27 @@ function rotateCourt(court, startTime = null) {
     fillCourtFromQueue(court);
     syncCourtTimer(court, startTime);
     refresh();
-    if (rotatedOut.length) {
-        showToast(court.name + " rotated — next group is up");
-    }
+    if (rotatedOut.length) showToast(court.name + " rotated — next group is up");
 }
+
 function tickTimers() {
     const now = Date.now();
     let anyExpired = false;
     courts.forEach(court => {
+        // Warmup finished → start session timer
+        if (court.warmupEnd != null && now >= court.warmupEnd) {
+            court.warmupEnd = null;
+            court.timerEnd = Date.now() + SESSION_MS;
+            anyExpired = true;
+            refresh();
+        }
+        // Session timer expired → rotate
         if (court.timerEnd != null && now >= court.timerEnd) {
             anyExpired = true;
             rotateCourt(court);
         }
     });
-    if (!anyExpired) {
-        updateTimerDisplays();
-    }
+    if (!anyExpired) updateTimerDisplays();
 }
 
 function formatCountdown(ms) {
@@ -291,17 +298,45 @@ function formatCountdown(ms) {
 function updateTimerDisplays() {
     const now = Date.now();
     courts.forEach(court => {
+        // Manage tab timer
         const el = document.querySelector(`.court-timer[data-court="${court.id}"]`);
-        if (!el) return;
-        if (court.timerEnd == null) {
-            el.textContent = "";
-            el.classList.add("court-timer-hidden");
-            return;
+        if (el) {
+            if (court.warmupEnd != null) {
+                const remaining = court.warmupEnd - now;
+                el.classList.remove("court-timer-hidden");
+                el.classList.add("court-timer-warmup");
+                el.classList.remove("court-timer-warn");
+                el.textContent = formatCountdown(remaining);
+            } else if (court.timerEnd != null) {
+                const remaining = court.timerEnd - now;
+                el.classList.remove("court-timer-hidden", "court-timer-warmup");
+                el.textContent = formatCountdown(remaining);
+                el.classList.toggle("court-timer-warn", remaining <= 5 * 60 * 1000);
+            } else {
+                el.textContent = "";
+                el.classList.add("court-timer-hidden");
+                el.classList.remove("court-timer-warmup");
+            }
         }
-        const remaining = court.timerEnd - now;
-        el.classList.remove("court-timer-hidden");
-        el.textContent = formatCountdown(remaining);
-        el.classList.toggle("court-timer-warn", remaining <= 5 * 60 * 1000);
+        // Courts tab timer
+        const roEl = document.querySelector(`.court-timer[data-court-ro="${court.id}"]`);
+        if (roEl) {
+            if (court.warmupEnd != null) {
+                const remaining = court.warmupEnd - now;
+                roEl.classList.remove("court-timer-hidden");
+                roEl.classList.add("court-timer-warmup");
+                roEl.textContent = formatCountdown(remaining);
+            } else if (court.timerEnd != null) {
+                const remaining = court.timerEnd - now;
+                roEl.classList.remove("court-timer-hidden", "court-timer-warmup");
+                roEl.textContent = formatCountdown(remaining);
+                roEl.classList.toggle("court-timer-warn", remaining <= 5 * 60 * 1000);
+            } else {
+                roEl.textContent = "";
+                roEl.classList.add("court-timer-hidden");
+                roEl.classList.remove("court-timer-warmup");
+            }
+        }
     });
 }
 
@@ -311,9 +346,7 @@ function removePlayerFromGroup(courtId, groupIdx, username) {
     const group = court.queue[groupIdx];
     if (!group) return;
     group.players = group.players.filter(u => u !== username);
-    if (group.players.length === 0) {
-        court.queue.splice(groupIdx, 1);
-    }
+    if (group.players.length === 0) court.queue.splice(groupIdx, 1);
     refresh();
     showToast(username + " removed from queue");
 }
@@ -341,13 +374,11 @@ function setGroupSize(courtId, groupIdx, size) {
     if (!court) return;
     const group = court.queue[groupIdx];
     if (!group) return;
-
     if (size < group.players.length) {
         showToast("Remove a player before shrinking this group");
         renderCourts();
         return;
     }
-
     group.size = size;
     refresh();
     showToast("Group " + (groupIdx + 1) + " set to " + (size === 2 ? "pair" : "quad"));
@@ -360,9 +391,10 @@ function clearAllCourts() {
 }
 
 function refresh() {
-    renderRoster(document.getElementById("roster-search").value);
+    renderRoster();
     updateStats();
     renderCourts();
+    if (activeTab === "courts") renderCourtsReadonly();
     scheduleSave();
 }
 
@@ -372,8 +404,8 @@ function renderCourts() {
     grid.innerHTML = "";
 
     courts.forEach(court => {
-        const onFull  = court.onCourt.length >= court.courtSize;
-        const qFull   = court.queue.length >= 4;
+        const onFull = court.onCourt.length >= court.courtSize;
+        const qFull  = court.queue.length >= 4;
 
         const onSlotsHTML = Array.from({ length: court.courtSize }, (_, i) => {
             const username = court.onCourt[i];
@@ -382,9 +414,8 @@ function renderCourts() {
                     <span class="slot-num">${i + 1}</span>
                     <div class="slot-avatar">${initials(username)}</div>
                     <span class="slot-name">${username}</span>
-                    <button class="slot-remove"
-                        onclick="removeFromOnCourt('${court.id}','${username}')"
-                        title="Remove">✕</button>
+                    <span class="slot-password">${(players.find(p => p.username === username) || {}).password || ''}</span>
+                    <button class="slot-remove" onclick="removeFromOnCourt('${court.id}','${username}')" title="Remove">✕</button>
                 </div>`;
             }
             return `<div class="slot dropslot" data-court="${court.id}" data-target="oncourt" data-slot-index="${i}">
@@ -402,9 +433,8 @@ function renderCourts() {
                         <span class="slot-num q-num">${pi + 1}</span>
                         <div class="slot-avatar slot-avatar-queue">${initials(username)}</div>
                         <span class="slot-name">${username}</span>
-                        <button class="slot-remove"
-                            onclick="removePlayerFromGroup('${court.id}',${gi},'${username}')"
-                            title="Remove">✕</button>
+                        <span class="slot-password slot-password-queue">${(players.find(p => p.username === username) || {}).password || ''}</span>
+                        <button class="slot-remove" onclick="removePlayerFromGroup('${court.id}',${gi},'${username}')" title="Remove">✕</button>
                     </div>`;
                 }
                 return `<div class="slot slot-queue${groupFull ? " slot-full" : " dropslot"}"
@@ -422,8 +452,7 @@ function renderCourts() {
                 <div class="queue-group-header">
                     <div class="queue-group-label-wrap">
                         <span class="queue-group-label">Group ${gi + 1}</span>
-                        <select class="group-size-select" title="Group size"
-                            onchange="setGroupSize('${court.id}',${gi},+this.value)">
+                        <select class="group-size-select" title="Group size" onchange="setGroupSize('${court.id}',${gi},+this.value)">
                             <option value="2" ${group.size === 2 ? "selected" : ""}>Pair</option>
                             <option value="4" ${group.size === 4 ? "selected" : ""}>Quad</option>
                         </select>
@@ -463,10 +492,20 @@ function renderCourts() {
             })
         ).join("");
 
-        const timerHidden = court.timerEnd == null ? " court-timer-hidden" : "";
-        const timerHTML = `<span class="court-timer${timerHidden}" data-court="${court.id}">
-            ${court.timerEnd != null ? formatCountdown(court.timerEnd - Date.now()) : ""}
-        </span>`;
+        const hasTimer = court.timerEnd != null || court.warmupEnd != null;
+        const showStartBtn = !hasTimer && court.onCourt.length > 0;
+        const timerHidden = !hasTimer ? " court-timer-hidden" : "";
+        const timerDisplay = court.warmupEnd != null
+            ? formatCountdown(court.warmupEnd - Date.now())
+            : court.timerEnd != null ? formatCountdown(court.timerEnd - Date.now()) : "";
+        const warmupClass = court.warmupEnd != null ? " court-timer-warmup" : "";
+        const timerHTML = showStartBtn
+            ? `<div class="timer-start-wrap">
+                <input type="number" class="timer-input" id="timer-input-${court.id}" value="10" min="1" max="999" title="Minutes before session">
+                <span class="timer-input-label">min</span>
+                <button class="btn btn-start-timer" onclick="startCourtTimer('${court.id}')">Start</button>
+               </div>`
+            : `<span class="court-timer${timerHidden}${warmupClass}" data-court="${court.id}">${timerDisplay}</span>`;
 
         const card = document.createElement("div");
         card.className = "court-card";
@@ -480,13 +519,11 @@ function renderCourts() {
                     <button class="btn btn-danger" onclick="removeCourt('${court.id}')" title="Remove court">✕</button>
                 </div>
             </div>
-
             <div class="section-label">
-                <span>On court</span>
+                <span>${court.warmupEnd != null ? "In queue for court" : "On court"}</span>
                 <span class="court-badge ${onBadgeClass}">${onBadgeText}</span>
             </div>
             <div class="queue-slots">${onSlotsHTML}</div>
-
             <div class="section-label section-label-queue">
                 <span>Queue</span>
                 <span class="court-badge ${qBadgeClass}">${qBadgeText}</span>
@@ -510,25 +547,22 @@ function renderCourts() {
 /* ── Drag ── */
 function initDraggable(el) {
     const pos = { x: 0, y: 0 };
-    let ghosts = [];
 
     interact(el).draggable({
         listeners: {
             start(e) {
                 e.target.classList.add("is-dragging");
                 e.target.style.zIndex = 1000;
-
                 const batch = getDragBatch(e.target.dataset.username);
-                ghosts = createFannedGhosts(e.target, batch);
+                batch.forEach(username => {
+                    const row = document.querySelector(`.draggable[data-username="${username}"]`);
+                    if (row) row.classList.add("drag-batch-highlight");
+                });
             },
             move(e) {
                 pos.x += e.dx;
                 pos.y += e.dy;
                 e.target.style.transform = `translate(${pos.x}px,${pos.y}px)`;
-                ghosts.forEach(g => {
-                    g.style.transform =
-                        `translate(${pos.x + g.dataset.offX}px,${pos.y + g.dataset.offY}px) rotate(${g.dataset.rot}deg)`;
-                });
             },
             end(e) {
                 e.target.classList.remove("is-dragging");
@@ -537,55 +571,11 @@ function initDraggable(el) {
                 e.target.style.zIndex     = "";
                 pos.x = 0; pos.y = 0;
                 setTimeout(() => { e.target.style.transition = ""; }, 150);
-
-                ghosts.forEach(g => g.remove());
-                ghosts = [];
+                document.querySelectorAll(".drag-batch-highlight").forEach(row => {
+                    row.classList.remove("drag-batch-highlight");
+                });
             }
         }
-    });
-}
-
-function createFannedGhosts(originEl, batch) {
-    if (batch.length <= 1) return [];
-
-    const rect = originEl.getBoundingClientRect();
-    const extras = batch.slice(1);
-
-    return extras.map((username, i) => {
-        const player = players.find(p => p.username === username);
-        const ghost = originEl.cloneNode(true);
-        ghost.classList.remove("is-dragging");
-        ghost.classList.add("drag-ghost");
-        ghost.removeAttribute("id");
-
-        if (player) {
-            ghost.dataset.username = player.username;
-            const nameEl = ghost.querySelector(".col-username");
-            const pwEl   = ghost.querySelector(".col-password");
-            if (nameEl) nameEl.textContent = player.username;
-            if (pwEl)   pwEl.textContent   = player.password;
-            const avatarEl = ghost.querySelector(".player-avatar");
-            if (avatarEl) avatarEl.textContent = initials(player.username);
-        }
-
-        const dir    = i % 2 === 0 ? 1 : -1;
-        const step   = Math.ceil((i + 1) / 2);
-        const rot    = dir * (6 * step);
-        const offX   = dir * (10 * step);
-        const offY   = 6 * step;
-
-        ghost.style.position   = "fixed";
-        ghost.style.left       = rect.left + "px";
-        ghost.style.top        = rect.top + "px";
-        ghost.style.width      = rect.width + "px";
-        ghost.style.zIndex     = 999 - step;
-        ghost.style.transform  = `translate(${offX}px,${offY}px) rotate(${rot}deg)`;
-        ghost.dataset.offX = offX;
-        ghost.dataset.offY = offY;
-        ghost.dataset.rot  = rot;
-
-        document.body.appendChild(ghost);
-        return ghost;
     });
 }
 
@@ -608,12 +598,12 @@ function initDropzones() {
                     if (!court) return;
 
                     const batch = getDragBatch(leadUsername);
-
                     const toPlace = batch.filter(u =>
                         !court.onCourt.includes(u) &&
                         !court.queue.some(g => g.players.includes(u))
                     );
                     const skipped = batch.length - toPlace.length;
+
                     if (toPlace.length === 0) {
                         showToast(batch.length > 1 ? "Already on " + court.name : leadUsername + " is already on " + court.name);
                         return;
@@ -634,7 +624,7 @@ function initDropzones() {
                         return;
                     }
 
-                    syncCourtTimer(court);
+                    syncCourtTimer(court, null, false);
 
                     const leftover = toPlace.length - placed.length;
                     let msg = placed.length > 1
@@ -658,10 +648,11 @@ function fillOnCourtFrom(court, startIdx, usernames) {
 
     for (let i = startIdx; i < court.courtSize && names.length > 0; i++) {
         if (court.onCourt[i] != null) continue;
-        court.onCourt[i] = names.shift();
+        const u = names.shift();
+        court.onCourt[i] = u;
+        placed.push(u);
     }
     court.onCourt = court.onCourt.filter(u => u != null);
-    placed.push(...usernames.slice(0, usernames.length - names.length));
 
     if (names.length > 0) {
         const queuePlaced = fillQueueFrom(court, 0, 0, names);
@@ -707,10 +698,177 @@ function injectDragSizeSelector() {
     list.parentNode.insertBefore(row, list);
 }
 
+/* ── Sign up ── */
+function openSignup() {
+    document.getElementById("signup-username").value = "";
+    document.getElementById("signup-password").value = "";
+    document.getElementById("signup-error").style.display = "none";
+    const el = document.getElementById("signup-toast");
+    el.style.display = "flex";
+    requestAnimationFrame(() => el.classList.add("show"));
+    document.getElementById("signup-username").focus();
+}
+
+function closeSignup() {
+    const el = document.getElementById("signup-toast");
+    el.classList.remove("show");
+    setTimeout(() => { el.style.display = "none"; }, 200);
+}
+
+function closeSignupIfOutside(e) {} // no longer needed
+
+async function submitSignup() {
+    const username = document.getElementById("signup-username").value.trim();
+    const password = document.getElementById("signup-password").value.trim();
+    const errEl = document.getElementById("signup-error");
+
+    if (!username || !password) {
+        errEl.textContent = "Both fields are required.";
+        errEl.style.display = "block";
+        return;
+    }
+
+    const { error } = await sb
+        .from("logins")
+        .insert({ username, password });
+
+    if (error) {
+        errEl.textContent = error.message.includes("duplicate") ? "Username already exists." : error.message;
+        errEl.style.display = "block";
+        return;
+    }
+
+    document.getElementById('signup-username').value = '';
+    document.getElementById('signup-password').value = '';
+    document.getElementById('signup-error').style.display = 'none';
+    showToast(username + " signed up!");
+}
+
+
+/* ── Tabs ── */
+let activeTab = "manage";
+
+function switchTab(tab) {
+    activeTab = tab;
+    document.getElementById("view-manage").style.display = tab === "manage" ? "" : "none";
+    document.getElementById("view-courts").style.display = tab === "courts" ? "" : "none";
+    document.getElementById("tab-manage").classList.toggle("active", tab === "manage");
+    document.getElementById("tab-courts").classList.toggle("active", tab === "courts");
+    if (tab === "courts") renderCourtsReadonly();
+}
+
+function renderCourtsReadonly() {
+    const grid = document.getElementById("courts-grid-readonly");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    courts.forEach(court => {
+        const onSlotsHTML = Array.from({ length: court.courtSize }, (_, i) => {
+            const username = court.onCourt[i];
+            if (username) {
+                const pw = (players.find(p => p.username === username) || {}).password || '';
+                return `<div class="slot slot-occupied">
+                    <span class="slot-num">${i + 1}</span>
+                    <div class="slot-avatar">${initials(username)}</div>
+                    <span class="slot-name">${username}</span>
+                    <span class="slot-password">${pw}</span>
+                </div>`;
+            }
+            return `<div class="slot">
+                <span class="slot-num">${i + 1}</span>
+                <span class="slot-placeholder">Empty</span>
+            </div>`;
+        }).join("");
+
+        const qGroupsHTML = court.queue.map((group, gi) => {
+            const playerSlotsHTML = Array.from({ length: group.size }, (_, pi) => {
+                const username = group.players[pi];
+                if (username) {
+                    const pw = (players.find(p => p.username === username) || {}).password || '';
+                    return `<div class="slot slot-occupied slot-queue">
+                        <span class="slot-num q-num">${pi + 1}</span>
+                        <div class="slot-avatar slot-avatar-queue">${initials(username)}</div>
+                        <span class="slot-name">${username}</span>
+                        <span class="slot-password slot-password-queue">${pw}</span>
+                    </div>`;
+                }
+                return `<div class="slot slot-queue">
+                    <span class="slot-num q-num">${pi + 1}</span>
+                    <span class="slot-placeholder">Empty</span>
+                </div>`;
+            }).join("");
+
+            return `<div class="queue-group">
+                <div class="queue-group-header">
+                    <span class="queue-group-label">Group ${gi + 1}</span>
+                    <span class="court-badge badge-ok">${group.players.length}/${group.size}</span>
+                </div>
+                <div class="queue-slots">${playerSlotsHTML}</div>
+            </div>`;
+        }).join("");
+
+        const timerHidden = court.timerEnd == null ? " court-timer-hidden" : "";
+        const timerHTML = `<span class="court-timer${timerHidden}" data-court-ro="${court.id}">
+            ${court.timerEnd != null ? formatCountdown(court.timerEnd - Date.now()) : ""}
+        </span>`;
+
+        const onBadgeClass = court.onCourt.length >= court.courtSize ? "badge-full" : court.onCourt.length === 0 ? "badge-empty" : "badge-ok";
+
+        const card = document.createElement("div");
+        card.className = "court-card";
+        card.innerHTML = `
+            <div class="court-header">
+                <span class="readonly-court-name">${court.gymNumber != null ? "Court " + court.gymNumber : court.name}</span>
+                <div class="court-header-right">${timerHTML}</div>
+            </div>
+            <div class="section-label">
+                <span>${court.warmupEnd != null ? "In queue for court" : "On court"}</span>
+                <span class="court-badge ${onBadgeClass}">${court.onCourt.length}/${court.courtSize}</span>
+            </div>
+            <div class="queue-slots">${onSlotsHTML}</div>
+            ${court.queue.length > 0 ? `
+            <div class="section-label section-label-queue">
+                <span>Queue</span>
+                <span class="court-badge badge-ok">${court.queue.length} group${court.queue.length !== 1 ? "s" : ""}</span>
+            </div>
+            ${qGroupsHTML}` : ""}
+        `;
+        grid.appendChild(card);
+    });
+}
+
+/* ── Delete player ── */
+async function deletePlayer(username) {
+    if (!confirm("Delete " + username + "? This cannot be undone.")) return;
+
+    courts.forEach(c => {
+        c.onCourt = c.onCourt.filter(u => u !== username);
+        c.queue.forEach(g => { g.players = g.players.filter(u => u !== username); });
+        c.queue = c.queue.filter(g => g.players.length > 0);
+        syncCourtTimer(c, null, false);
+    });
+
+    const { error } = await sb
+        .from("logins")
+        .delete()
+        .eq("username", username);
+
+    if (error) {
+        showToast("Failed to delete " + username);
+        console.error(error);
+        return;
+    }
+
+    players = players.filter(p => p.username !== username);
+    showToast(username + " deleted");
+    refresh();
+}
+
 /* ── Boot ── */
 async function boot() {
+    initSupabase();
     injectDragSizeSelector();
-    await initStateTable();
+
     const restored = await loadState();
     if (!restored) {
         addCourt();
@@ -718,19 +876,28 @@ async function boot() {
     } else {
         renderCourts();
     }
+
     await loadTable();
+
     if (restored) {
         const now = Date.now();
         courts.forEach(court => {
+            if (court.warmupEnd != null && now >= court.warmupEnd) {
+                court.warmupEnd = null;
+                court.timerEnd = Date.now() + SESSION_MS;
+            }
             if (court.timerEnd != null && now >= court.timerEnd) {
-                const expiredAt = court.timerEnd; // when the previous session ended
-                court.timerEnd = null; // clear so syncCourtTimer sets a new one
+                const expiredAt = court.timerEnd;
+                court.timerEnd = null;
                 rotateCourt(court, expiredAt);
             }
         });
-        renderRoster(document.getElementById("roster-search").value);
+        renderRoster();
         updateStats();
     }
+
+    booting = false;
+    subscribeToChanges();
 
     setInterval(() => {
         tickTimers();
@@ -738,20 +905,4 @@ async function boot() {
     }, 1000);
 }
 
-window.addEventListener("beforeunload", (e) => {
-    const snapshot = courts.map(c => ({
-        ...c,
-        timerEnd: c.timerEnd ? c.timerEnd - Date.now() : null
-    }));
-    const json = JSON.stringify(snapshot).replace(/'/g, "''");
-    navigator.sendBeacon(
-        `${TURSO_URL}/v2/pipeline`,
-        JSON.stringify({
-            requests: [
-                { type: "execute", stmt: { sql: `INSERT INTO court_state (id, data) VALUES ('main', '${json}') ON CONFLICT(id) DO UPDATE SET data = excluded.data` } },
-                { type: "close" }
-            ]
-        })
-    );
-});
 boot();
