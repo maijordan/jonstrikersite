@@ -88,7 +88,15 @@ function subscribeToChanges() {
             if (payload.new.session === sessionId) return;
             try {
                 const snapshot = JSON.parse(payload.new.data);
-                courts = snapshot.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
+                courts = snapshot.map(c => {
+                    // Preserve local timerEnd/warmupEnd to avoid desync
+                    const local = courts.find(lc => lc.id === c.id);
+                    return {
+                        ...c,
+                        timerEnd:  (local && local.timerEnd  != null) ? local.timerEnd  : (c.timerEnd  ?? null),
+                        warmupEnd: (local && local.warmupEnd != null) ? local.warmupEnd : (c.warmupEnd ?? null),
+                    };
+                });
                 courtCount = courts.reduce((max, c) => {
                     const n = parseInt(c.id.replace("court-", ""));
                     return isNaN(n) ? max : Math.max(max, n);
