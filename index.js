@@ -315,8 +315,9 @@ function tickTimers() {
     courts.forEach(court => {
         // Warmup finished → start session timer
         if (court.warmupEnd != null && now >= court.warmupEnd) {
+            const warmupExpiredAt = court.warmupEnd;
             court.warmupEnd = null;
-            court.timerEnd = serverNow() + SESSION_MS;
+            court.timerEnd = warmupExpiredAt + SESSION_MS;
             anyExpired = true;
             refresh();
         }
@@ -935,19 +936,28 @@ async function boot() {
 
     if (restored) {
         const now = serverNow();
+        let neededCatchupSave = false;
         courts.forEach(court => {
             if (court.warmupEnd != null && now >= court.warmupEnd) {
+                const warmupExpiredAt = court.warmupEnd;
                 court.warmupEnd = null;
-                court.timerEnd = serverNow() + SESSION_MS;
+                court.timerEnd = warmupExpiredAt + SESSION_MS;
+                neededCatchupSave = true;
             }
             if (court.timerEnd != null && now >= court.timerEnd) {
                 const expiredAt = court.timerEnd;
                 court.timerEnd = null;
-                rotateCourt(court, expiredAt);
+                rotateCourt(court, expiredAt); // rotateCourt saves internally via refresh()
+                neededCatchupSave = false; // already saved by rotateCourt
             }
         });
         renderRoster();
         updateStats();
+        renderCourts();
+        if (neededCatchupSave) {
+            booting = false; // allow save to go through
+            saveState();
+        }
     }
 
     booting = false;
