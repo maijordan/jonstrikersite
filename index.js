@@ -25,8 +25,23 @@ let booting      = true;
 let sb           = null;
 let localVersion  = 0;
 const sessionId   = Math.random().toString(36).slice(2);
-const rotateJitter  = Math.floor(Math.random() * 2000);
-const pendingRotations = new Set();
+let clockOffset   = 0; // serverTime - localTime, corrects device clock skew
+
+function serverNow() {
+    return Date.now() + clockOffset;
+}
+
+async function syncClock() {
+    try {
+        const { data, error } = await sb.rpc("server_time");
+        if (!error && data) {
+            clockOffset = new Date(data).getTime() - Date.now();
+            console.log("clock offset:", clockOffset, "ms");
+        }
+    } catch(e) {
+        console.error("clock sync failed:", e);
+    }
+}
 
 /* ── Supabase init ── */
 function initSupabase() {
@@ -90,7 +105,15 @@ function subscribeToChanges() {
             if (payload.new.session === sessionId) return;
             try {
                 const snapshot = JSON.parse(payload.new.data);
-                courts = snapshot.map(c => ({ ...c, timerEnd: c.timerEnd ?? null, warmupEnd: c.warmupEnd ?? null }));
+                courts = snapshot.map(c => {
+                    // Preserve local timerEnd/warmupEnd to avoid desync
+                    const local = courts.find(lc => lc.id === c.id);
+                    return {
+                        ...c,
+                        timerEnd:  (local && local.timerEnd  != null) ? local.timerEnd  : (c.timerEnd  ?? null),
+                        warmupEnd: (local && local.warmupEnd != null) ? local.warmupEnd : (c.warmupEnd ?? null),
+                    };
+                });
                 courtCount = courts.reduce((max, c) => {
                     const n = parseInt(c.id.replace("court-", ""));
                     return isNaN(n) ? max : Math.max(max, n);
@@ -251,7 +274,7 @@ function removeFromOnCourt(courtId, username) {
 /* ── Timer ── */
 function syncCourtTimer(court, startTime = null, autoStart = true) {
     if (court.onCourt.length > 0 && court.timerEnd == null && autoStart) {
-        court.timerEnd = (startTime ?? Date.now()) + SESSION_MS;
+        court.timerEnd = (startTime ?? serverNow()) + SESSION_MS;
     } else if (court.onCourt.length === 0) {
         court.timerEnd = null;
     }
@@ -264,9 +287,9 @@ function startCourtTimer(courtId) {
     const minutes = input ? Math.max(0, parseInt(input.value) || 0) : 0;
     if (minutes === 0) {
         court.warmupEnd = null;
-        court.timerEnd = Date.now() + SESSION_MS;
+        court.timerEnd = serverNow() + SESSION_MS;
     } else {
-        court.warmupEnd = Date.now() + minutes * 60 * 1000;
+        court.warmupEnd = serverNow() + minutes * 60 * 1000;
         court.timerEnd = null;
     }
 
@@ -293,27 +316,20 @@ function rotateCourt(court, startTime = null) {
 }
 
 function tickTimers() {
-    const now = Date.now();
+    const now = serverNow();
     let anyExpired = false;
     courts.forEach(court => {
         // Warmup finished → start session timer
         if (court.warmupEnd != null && now >= court.warmupEnd) {
             court.warmupEnd = null;
-            court.timerEnd = Date.now() + SESSION_MS;
+            court.timerEnd = serverNow() + SESSION_MS;
             anyExpired = true;
             refresh();
         }
-        // Session timer expired → rotate (jittered so only one device rotates)
-        if (court.timerEnd != null && now >= court.timerEnd && !pendingRotations.has(court.id)) {
+        // Session timer expired → rotate
+        if (court.timerEnd != null && now >= court.timerEnd) {
             anyExpired = true;
-            pendingRotations.add(court.id);
-            setTimeout(() => {
-                pendingRotations.delete(court.id);
-                const c = courts.find(x => x.id === court.id);
-                if (c && c.timerEnd != null && Date.now() >= c.timerEnd) {
-                    rotateCourt(c);
-                }
-            }, rotateJitter);
+            rotateCourt(court);
         }
     });
     if (!anyExpired) updateTimerDisplays();
@@ -327,7 +343,7 @@ function formatCountdown(ms) {
 }
 
 function updateTimerDisplays() {
-    const now = Date.now();
+    const now = serverNow();
     courts.forEach(court => {
         // Manage tab timer
         const el = document.querySelector(`.court-timer[data-court="${court.id}"]`);
@@ -528,8 +544,8 @@ function renderCourts() {
         const showStartBtn = !hasTimer && court.onCourt.length > 0;
         const timerHidden = !hasTimer ? " court-timer-hidden" : "";
         const timerDisplay = court.warmupEnd != null
-            ? formatCountdown(court.warmupEnd - Date.now())
-            : court.timerEnd != null ? formatCountdown(court.timerEnd - Date.now()) : "";
+            ? formatCountdown(court.warmupEnd - serverNow())
+            : court.timerEnd != null ? formatCountdown(court.timerEnd - serverNow()) : "";
         const warmupClass = court.warmupEnd != null ? " court-timer-warmup" : "";
         const timerHTML = showStartBtn
             ? `<div class="timer-start-wrap">
@@ -841,7 +857,7 @@ function renderCourtsReadonly() {
 
         const timerHidden = court.timerEnd == null ? " court-timer-hidden" : "";
         const timerHTML = `<span class="court-timer${timerHidden}" data-court-ro="${court.id}">
-            ${court.timerEnd != null ? formatCountdown(court.timerEnd - Date.now()) : ""}
+            ${court.timerEnd != null ? formatCountdown(court.timerEnd - serverNow()) : ""}
         </span>`;
 
         const onBadgeClass = court.onCourt.length >= court.courtSize ? "badge-full" : court.onCourt.length === 0 ? "badge-empty" : "badge-ok";
@@ -899,6 +915,8 @@ async function deletePlayer(username) {
 /* ── Boot ── */
 async function boot() {
     initSupabase();
+    await syncClock();
+    setInterval(syncClock, 5 * 60 * 1000);
     injectDragSizeSelector();
 
     const restored = await loadState();
@@ -912,11 +930,11 @@ async function boot() {
     await loadTable();
 
     if (restored) {
-        const now = Date.now();
+        const now = serverNow();
         courts.forEach(court => {
             if (court.warmupEnd != null && now >= court.warmupEnd) {
                 court.warmupEnd = null;
-                court.timerEnd = Date.now() + SESSION_MS;
+                court.timerEnd = serverNow() + SESSION_MS;
             }
             if (court.timerEnd != null && now >= court.timerEnd) {
                 const expiredAt = court.timerEnd;
