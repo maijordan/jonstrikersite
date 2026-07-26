@@ -559,7 +559,7 @@ function renderCourts() {
         const warmupClass = court.warmupEnd != null ? " court-timer-warmup" : "";
         const timerHTML = showStartBtn
             ? `<div class="timer-start-wrap">
-                <input type="number" class="timer-input" id="timer-input-${court.id}" value="0" min="0" max="999" title="Minutes before session">
+                <input class="timer-input" id="timer-input-${court.id}" value="0" min="0" max="999" title="Minutes before session">
                 <span class="timer-input-label">min</span>
                 <button class="btn btn-start-timer" onclick="startCourtTimer('${court.id}')">Start</button>
                </div>`
