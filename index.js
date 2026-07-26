@@ -138,15 +138,23 @@ function subscribeToChanges() {
 async function loadTable() {
     const { data, error } = await sb
         .from("logins")
-        .select("username, password");
+        .select("username, password, avatar_url");
     if (error) { console.error("loadTable error:", error); return; }
-    players = data.map(row => ({ username: row.username, password: row.password }));
+    players = data.map(row => ({ username: row.username, password: row.password, avatarUrl: row.avatar_url || null }));
     renderRoster();
     updateStats();
 }
 
 /* ── Utilities ── */
 function initials(name) { return name.slice(0, 2).toUpperCase(); }
+
+function avatarHTML(username, sizeClass) {
+    const player = players.find(p => p.username === username);
+    if (player && player.avatarUrl) {
+        return `<img class="${sizeClass}" src="${player.avatarUrl}" alt="${username}">`;
+    }
+    return `<div class="${sizeClass}">${initials(username)}</div>`;
+}
 
 function showToast(msg) {
     const t = document.getElementById("toast");
@@ -184,7 +192,7 @@ function renderRoster() {
             el.className = "draggable" + (assigned ? " is-assigned" : "");
             el.dataset.username = p.username;
             el.innerHTML = `
-                <div class="player-avatar">${initials(p.username)}</div>
+                ${avatarHTML(p.username, "player-avatar")}
                 <span class="col-username">${p.username}</span>
                 <span class="col-password">${p.password}</span>
                 ${assigned ? '<span class="queued-tag">assigned</span>' : ""}
@@ -462,7 +470,7 @@ function renderCourts() {
             if (username) {
                 return `<div class="slot slot-occupied">
                     <span class="slot-num">${i + 1}</span>
-                    <div class="slot-avatar">${initials(username)}</div>
+                    ${avatarHTML(username, "slot-avatar")}
                     <span class="slot-name">${username}</span>
                     <span class="slot-password">${(players.find(p => p.username === username) || {}).password || ''}</span>
                     <button class="slot-remove" onclick="removeFromOnCourt('${court.id}','${username}')" title="Remove">✕</button>
@@ -481,7 +489,7 @@ function renderCourts() {
                 if (username) {
                     return `<div class="slot slot-occupied slot-queue">
                         <span class="slot-num q-num">${pi + 1}</span>
-                        <div class="slot-avatar slot-avatar-queue">${initials(username)}</div>
+                        ${avatarHTML(username, "slot-avatar slot-avatar-queue")}
                         <span class="slot-name">${username}</span>
                         <span class="slot-password slot-password-queue">${(players.find(p => p.username === username) || {}).password || ''}</span>
                         <button class="slot-remove" onclick="removePlayerFromGroup('${court.id}',${gi},'${username}')" title="Remove">✕</button>
@@ -551,7 +559,7 @@ function renderCourts() {
         const warmupClass = court.warmupEnd != null ? " court-timer-warmup" : "";
         const timerHTML = showStartBtn
             ? `<div class="timer-start-wrap">
-                <input class="timer-input" id="timer-input-${court.id}" value="0" min="0" max="999" title="Minutes before session">
+                <input type="number" class="timer-input" id="timer-input-${court.id}" value="0" min="0" max="999" title="Minutes before session">
                 <span class="timer-input-label">min</span>
                 <button class="btn btn-start-timer" onclick="startCourtTimer('${court.id}')">Start</button>
                </div>`
@@ -819,7 +827,7 @@ function renderCourtsReadonly() {
                 const pw = (players.find(p => p.username === username) || {}).password || '';
                 return `<div class="slot slot-occupied">
                     <span class="slot-num">${i + 1}</span>
-                    <div class="slot-avatar">${initials(username)}</div>
+                    ${avatarHTML(username, "slot-avatar")}
                     <span class="slot-name">${username}</span>
                     <span class="slot-password">${pw}</span>
                 </div>`;
@@ -837,7 +845,7 @@ function renderCourtsReadonly() {
                     const pw = (players.find(p => p.username === username) || {}).password || '';
                     return `<div class="slot slot-occupied slot-queue">
                         <span class="slot-num q-num">${pi + 1}</span>
-                        <div class="slot-avatar slot-avatar-queue">${initials(username)}</div>
+                        ${avatarHTML(username, "slot-avatar slot-avatar-queue")}
                         <span class="slot-name">${username}</span>
                         <span class="slot-password slot-password-queue">${pw}</span>
                     </div>`;
