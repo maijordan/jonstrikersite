@@ -856,10 +856,13 @@ function renderCourtsReadonly() {
             </div>`;
         }).join("");
 
-        const timerHidden = court.timerEnd == null ? " court-timer-hidden" : "";
-        const timerHTML = `<span class="court-timer${timerHidden}" data-court-ro="${court.id}">
-            ${court.timerEnd != null ? formatCountdown(court.timerEnd - serverNow()) : ""}
-        </span>`;
+        const hasTimerRO = court.timerEnd != null || court.warmupEnd != null;
+        const timerHiddenRO = !hasTimerRO ? " court-timer-hidden" : "";
+        const warmupClassRO = court.warmupEnd != null ? " court-timer-warmup" : "";
+        const timerDisplayRO = court.warmupEnd != null
+            ? formatCountdown(court.warmupEnd - serverNow())
+            : court.timerEnd != null ? formatCountdown(court.timerEnd - serverNow()) : "";
+        const timerHTML = `<span class="court-timer${timerHiddenRO}${warmupClassRO}" data-court-ro="${court.id}">${timerDisplayRO}</span>`;
 
         const onBadgeClass = court.onCourt.length >= court.courtSize ? "badge-full" : court.onCourt.length === 0 ? "badge-empty" : "badge-ok";
 
