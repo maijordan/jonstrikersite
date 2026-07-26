@@ -795,7 +795,7 @@ async function submitSignup() {
 
 
 /* ── Tabs ── */
-let activeTab = "manage";
+let activeTab = "courts";
 
 function switchTab(tab) {
     activeTab = tab;
@@ -949,6 +949,7 @@ async function boot() {
 
     booting = false;
     subscribeToChanges();
+    renderCourtsReadonly();
 
     setInterval(tickTimers, 1000);
 }
