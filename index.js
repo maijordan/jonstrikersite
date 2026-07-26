@@ -26,6 +26,8 @@ let sb           = null;
 let localVersion  = 0;
 const sessionId   = Math.random().toString(36).slice(2);
 let clockOffset   = 0; // serverTime - localTime, corrects device clock skew
+const rotateJitter = Math.floor(Math.random() * 2000);
+const pendingRotations = new Set();
 
 function serverNow() {
     return Date.now() + clockOffset;
@@ -105,15 +107,7 @@ function subscribeToChanges() {
             if (payload.new.session === sessionId) return;
             try {
                 const snapshot = JSON.parse(payload.new.data);
-                courts = snapshot.map(c => {
-                    // Preserve local timerEnd/warmupEnd to avoid desync
-                    const local = courts.find(lc => lc.id === c.id);
-                    return {
-                        ...c,
-                        timerEnd:  (local && local.timerEnd  != null) ? local.timerEnd  : (c.timerEnd  ?? null),
-                        warmupEnd: (local && local.warmupEnd != null) ? local.warmupEnd : (c.warmupEnd ?? null),
-                    };
-                });
+                courts = snapshot.map(c => ({ ...c, timerEnd: c.timerEnd ?? null, warmupEnd: c.warmupEnd ?? null }));
                 courtCount = courts.reduce((max, c) => {
                     const n = parseInt(c.id.replace("court-", ""));
                     return isNaN(n) ? max : Math.max(max, n);
@@ -326,10 +320,17 @@ function tickTimers() {
             anyExpired = true;
             refresh();
         }
-        // Session timer expired → rotate
-        if (court.timerEnd != null && now >= court.timerEnd) {
+        // Session timer expired → rotate (jittered so only one device rotates)
+        if (court.timerEnd != null && now >= court.timerEnd && !pendingRotations.has(court.id)) {
             anyExpired = true;
-            rotateCourt(court);
+            pendingRotations.add(court.id);
+            setTimeout(() => {
+                pendingRotations.delete(court.id);
+                const c = courts.find(x => x.id === court.id);
+                if (c && c.timerEnd != null && serverNow() >= c.timerEnd) {
+                    rotateCourt(c);
+                }
+            }, rotateJitter);
         }
     });
     if (!anyExpired) updateTimerDisplays();
