@@ -764,3 +764,17 @@ body {
     opacity: 1;
     color: #c0392b !important;
 }
+
+.player-avatar,
+.slot-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.slot-avatar {
+    width: 26px;
+    height: 26px;
+}
