@@ -47,13 +47,11 @@ async function checkForStaleData() {
             .eq("id", "main")
             .single();
         if (error || !data) return;
-        if (data.session === sessionId) return; // our own save, not stale
+        if (data.session === sessionId) return;
         if (data.version > lastAppliedVersion) {
             showStaleDataToast();
         }
-    } catch(e) {
-        // silent fail
-    }
+    } catch(e) {}
 }
 
 function showStaleDataToast() {
