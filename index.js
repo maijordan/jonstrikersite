@@ -1,5 +1,6 @@
 const SUPABASE_URL = "PLACEHOLDER_URL";
 const SUPABASE_KEY = "PLACEHOLDER_KEY";
+const APP_VERSION = "dev"; // stamped by deploy.yml on each deploy
 
 /*
  * Court shape:
@@ -31,34 +32,6 @@ const pendingRotations = new Set();
 
 function serverNow() {
     return Date.now() + clockOffset;
-}
-
-
-/* ── Version check ── */
-async function checkForNewVersion() {
-    try {
-        const res = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.version && APP_VERSION !== "dev" && data.version !== APP_VERSION) {
-            showUpdateToast();
-        }
-    } catch(e) {
-        // silent fail - not critical
-    }
-}
-
-function showUpdateToast() {
-    if (document.getElementById("update-toast")) return; // already showing
-    const el = document.createElement("div");
-    el.id = "update-toast";
-    el.className = "update-toast";
-    el.innerHTML = `
-        <span>A new version is available.</span>
-        <button class="btn btn-primary" onclick="location.reload()">Refresh</button>
-    `;
-    document.body.appendChild(el);
-    requestAnimationFrame(() => el.classList.add("show"));
 }
 
 async function syncClock() {
@@ -958,8 +931,6 @@ async function boot() {
     initSupabase();
     await syncClock();
     setInterval(syncClock, 5 * 60 * 1000);
-    checkForNewVersion();
-    setInterval(checkForNewVersion, 60 * 1000);
     injectDragSizeSelector();
 
     const restored = await loadState();
