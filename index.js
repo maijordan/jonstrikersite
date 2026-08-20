@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://zsopbjfqmhxswgclgflr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_pH32vh77O449v32DQNhkNA_kBZV0bAz";
-const APP_VERSION = "1787206976"; // stamped by deploy.yml on each deploy
+const APP_VERSION = "1787207528"; // stamped by deploy.yml on each deploy
 
 /*
  * Court shape:
@@ -47,13 +47,11 @@ async function checkForStaleData() {
             .eq("id", "main")
             .single();
         if (error || !data) return;
-        if (data.session === sessionId) return; // our own save, not stale
+        if (data.session === sessionId) return;
         if (data.version > lastAppliedVersion) {
             showStaleDataToast();
         }
-    } catch(e) {
-        // silent fail
-    }
+    } catch(e) {}
 }
 
 function showStaleDataToast() {
