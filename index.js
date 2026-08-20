@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://zsopbjfqmhxswgclgflr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_pH32vh77O449v32DQNhkNA_kBZV0bAz";
-const APP_VERSION = "1787206732"; // stamped by deploy.yml on each deploy
+const APP_VERSION = "1787206976"; // stamped by deploy.yml on each deploy
 
 /*
  * Court shape:
@@ -32,6 +32,51 @@ const pendingRotations = new Set();
 
 function serverNow() {
     return Date.now() + clockOffset;
+}
+
+
+/* ── Data staleness check (fallback if realtime misses an update) ── */
+let lastAppliedVersion = 0;
+
+async function checkForStaleData() {
+    if (booting) return;
+    try {
+        const { data, error } = await sb
+            .from("court_state")
+            .select("version, session")
+            .eq("id", "main")
+            .single();
+        if (error || !data) return;
+        if (data.session === sessionId) return; // our own save, not stale
+        if (data.version > lastAppliedVersion) {
+            showStaleDataToast();
+        }
+    } catch(e) {
+        // silent fail
+    }
+}
+
+function showStaleDataToast() {
+    if (document.getElementById("stale-toast")) return;
+    const el = document.createElement("div");
+    el.id = "stale-toast";
+    el.className = "update-toast";
+    el.innerHTML = `
+        <span>Court data changed on another device.</span>
+        <button class="btn btn-primary" onclick="reloadCourtData()">Refresh</button>
+    `;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("show"));
+}
+
+async function reloadCourtData() {
+    const el = document.getElementById("stale-toast");
+    if (el) el.remove();
+    await loadState();
+    renderCourts();
+    renderRoster();
+    updateStats();
+    if (activeTab === "courts") renderCourtsReadonly();
 }
 
 async function syncClock() {
@@ -66,6 +111,7 @@ async function saveState() {
         const { error } = await sb
             .from("court_state")
             .upsert({ id: "main", data: JSON.stringify(snapshot), version: ++localVersion, session: sessionId });
+        lastAppliedVersion = localVersion;
         if (error) console.error("saveState error:", error);
     } catch(e) {
         console.error("saveState exception:", e);
@@ -76,12 +122,13 @@ async function loadState() {
     try {
         const { data, error } = await sb
             .from("court_state")
-            .select("data")
+            .select("data, version")
             .eq("id", "main")
             .single();
         if (error || !data) return false;
         const snapshot = JSON.parse(data.data);
         if (!Array.isArray(snapshot) || snapshot.length === 0) return false;
+        if (data.version) lastAppliedVersion = data.version;
         courts = snapshot.map(c => ({ ...c, timerEnd: c.timerEnd ?? null }));
         courtCount = courts.reduce((max, c) => {
             const n = parseInt(c.id.replace("court-", ""));
@@ -108,6 +155,7 @@ function subscribeToChanges() {
             if (payload.new.session === sessionId) return;
             try {
                 const snapshot = JSON.parse(payload.new.data);
+                if (payload.new.version) lastAppliedVersion = payload.new.version;
                 courts = snapshot.map(c => ({ ...c, timerEnd: c.timerEnd ?? null, warmupEnd: c.warmupEnd ?? null }));
                 courtCount = courts.reduce((max, c) => {
                     const n = parseInt(c.id.replace("court-", ""));
