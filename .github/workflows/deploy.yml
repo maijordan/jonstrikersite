@@ -21,6 +21,12 @@ jobs:
           sed -i "s|const SUPABASE_URL = \".*\"|const SUPABASE_URL = \"${SUPABASE_URL}\"|" index.js
           sed -i "s|const SUPABASE_KEY = \".*\"|const SUPABASE_KEY = \"${SUPABASE_KEY}\"|" index.js
 
+      - name: Stamp version
+        run: |
+          VERSION=$(date +%s)
+          echo "{\"version\": \"${VERSION}\"}" > version.json
+          sed -i "s|const APP_VERSION = \".*\"|const APP_VERSION = \"${VERSION}\"|" index.js
+
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
